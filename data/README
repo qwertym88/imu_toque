@@ -40,4 +40,12 @@ python data/visualize_retarget.py
 
 输出 NPZ 的 `qpos` 为 MuJoCo 模型的浮动基座和关节位置，`frame` 与 `fps` 保存原始时间轴；`joint_names` 和 `joint_qpos_addresses` 给出关节名称及其在 `qpos` 的列号。`errors` 的维度为帧、左右腿、误差项，误差项依次为膝盖位置误差（米）、足部位置误差（米）、足部朝向误差（弧度），衡量相对于经过标定和缩放的目标的拟合程度。文件还保存 `scale` 和 `reference_frame`。
 
+NPZ 还包含机器人重定向结果的 link 位姿：
+
+- link_names：7 个机器人 link，依次为 pelvis、左右腿的 hip_yaw_link、knee_link、ankle_roll_link。
+- link_positions：形状 (帧数, 7, 3)，各 link 坐标系原点的世界坐标，单位米。
+- link_orientations：形状 (帧数, 7, 4)，各 link 坐标系在世界坐标系中的单位四元数，分量顺序 (w, x, y, z)。
+
+这些值由最终机器人 qpos 运行 MuJoCo 正运动学得到；其中 ankle_roll_link 是当前模型里用作足部参考的 link。可通过 link_names 查找列号，再读取同一帧的两个位姿数组。
+
 这是运动学拟合，不保证足部接触、平衡、速度或力矩可行性。将结果用于实机前，需要另行做接触、动力学、速度及碰撞检查和轨迹处理。模型 XML 和 URDF 的运动学参数应保持一致。
