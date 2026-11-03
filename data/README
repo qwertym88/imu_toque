@@ -1,0 +1,43 @@
+# fp_raw 数据记录
+## 数据标签
+Test Subject=Walk
+Test Item=1
+Age=18
+Body Weight=85.0
+Load Weight=0.0
+Cutoff Threshold=0.0
+Sample Rate=512
+## 解释
+- SysTime: 时间戳，512Hz采样率
+- FP1_Fx/y/z: 力的分量
+- FP1_Fy/Fz: 压力中心CoP的位置
+- FP1 FP2 FP3: 三个力台
+
+# xsense 数据记录
+将数据导出成xlsx。采样率60Hz。
+
+# 可视化
+
+- `visualize_fp.py`: 查看fp数据
+- `visualize_xsense.py`: 查看xsense数据
+- `visualize_walk.py`: 将fp和xsense数据对齐后可视化
+
+# Xsens 下半身运动重定向
+
+在仓库根目录运行：
+
+```bash
+conda activate humanoid_sim
+python data/retarget_xsens.py
+python data/visualize_retarget.py
+```
+
+播放器使用 MuJoCo 的交互式窗口，只更新关节位置和正运动学，不执行动力学步进；地面只用于显示。空格暂停或继续，左右方向键暂停并逐帧移动，Home 回到第一帧。关闭窗口即可退出。使用 `--speed 0.5` 可半速播放，`--start-paused` 可从暂停状态开始。
+
+默认从 `data/xsense_raw.xlsx` 生成 `data/retargeted_motion.npz`，并使用 `model/szar_humanoid.xml` 的 `standing` 关键帧。可通过 `--input`、`--model` 和 `--output` 指定路径；播放器的 `--motion` 和 `--model` 也支持指定路径。
+
+算法将选定的 Xsens 参考帧映射到机器人站立姿态，以骨盆为参考拟合双膝和双足的位置变化、足部朝向变化，并对关节限位和帧间变化进行约束；上半身数据不参与计算。位置缩放默认为参考帧的人体和机器人双腿长度之比的平均值，也可以用 `--scale` 指定。`--reference-frame` 指定零起始的参考行号；应选择身体直立、双脚平稳的姿态，并在结果中检查坐标方向和足部姿态。该帧不是自动识别的标定姿势，原始帧与机器人站姿差异会影响整个结果。
+
+输出 NPZ 的 `qpos` 为 MuJoCo 模型的浮动基座和关节位置，`frame` 与 `fps` 保存原始时间轴；`joint_names` 和 `joint_qpos_addresses` 给出关节名称及其在 `qpos` 的列号。`errors` 的维度为帧、左右腿、误差项，误差项依次为膝盖位置误差（米）、足部位置误差（米）、足部朝向误差（弧度），衡量相对于经过标定和缩放的目标的拟合程度。文件还保存 `scale` 和 `reference_frame`。
+
+这是运动学拟合，不保证足部接触、平衡、速度或力矩可行性。将结果用于实机前，需要另行做接触、动力学、速度及碰撞检查和轨迹处理。模型 XML 和 URDF 的运动学参数应保持一致。
