@@ -1,13 +1,11 @@
 from pathlib import Path
 
-import openpyxl
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import openpyxl
 from matplotlib.animation import FuncAnimation
 
-xlsx_path = Path(
-    "./xsense_raw.xlsx"
-)
+xlsx_path = Path("./xsense_raw.xlsx")
 
 # 读取 Xsens 段位置
 wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
@@ -47,22 +45,18 @@ edge_names = [
     ("T12", "T8"),
     ("T8", "Neck"),
     ("Neck", "Head"),
-
     ("T8", "Right Shoulder"),
     ("Right Shoulder", "Right Upper Arm"),
     ("Right Upper Arm", "Right Forearm"),
     ("Right Forearm", "Right Hand"),
-
     ("T8", "Left Shoulder"),
     ("Left Shoulder", "Left Upper Arm"),
     ("Left Upper Arm", "Left Forearm"),
     ("Left Forearm", "Left Hand"),
-
     ("Pelvis", "Right Upper Leg"),
     ("Right Upper Leg", "Right Lower Leg"),
     ("Right Lower Leg", "Right Foot"),
     ("Right Foot", "Right Toe"),
-
     ("Pelvis", "Left Upper Leg"),
     ("Left Upper Leg", "Left Lower Leg"),
     ("Left Lower Leg", "Left Foot"),
@@ -70,9 +64,7 @@ edge_names = [
 ]
 
 edges = [
-    (name_to_idx[a], name_to_idx[b])
-    for a, b in edge_names
-    if a in name_to_idx and b in name_to_idx
+    (name_to_idx[a], name_to_idx[b]) for a, b in edge_names if a in name_to_idx and b in name_to_idx
 ]
 
 fig = plt.figure()
@@ -91,8 +83,8 @@ ax.set_xlabel("X")
 ax.set_ylabel("Y")
 ax.set_zlabel("Z")
 
-points, = ax.plot([], [], [], "o", color="tab:blue", markersize=4)
-com_point, = ax.plot([], [], [], "o", color="red", markersize=8)
+(points,) = ax.plot([], [], [], "o", color="tab:blue", markersize=4)
+(com_point,) = ax.plot([], [], [], "o", color="red", markersize=8)
 lines = [ax.plot([], [], [], color="black", linewidth=2)[0] for _ in edges]
 
 

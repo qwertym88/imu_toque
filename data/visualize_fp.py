@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 
-
 PLATE_LENGTH = 0.6  # m, x direction
 PLATE_WIDTH = 0.4  # m, y direction
 
@@ -41,9 +40,9 @@ def _compute_cop_global(
     fz = np.abs(data[f"FP{plate_index}_Fz"])
     # COP is measured from the center of each plate, while plate origins are
     # its left edges in the global drawing.
-    global_x = data[f"FP{plate_index}_Px"] + (plate_index - 1) * (
-        PLATE_LENGTH + gap
-    ) + PLATE_LENGTH / 2
+    global_x = (
+        data[f"FP{plate_index}_Px"] + (plate_index - 1) * (PLATE_LENGTH + gap) + PLATE_LENGTH / 2
+    )
     global_y = data[f"FP{plate_index}_Py"]
     return global_x, global_y, fz
 
@@ -84,18 +83,18 @@ def make_figure(data: np.ndarray, contact_threshold: float, gap: float) -> plt.F
 
         # Px/Py are local COP coordinates. Only draw them during loaded contact.
         contact = fz >= contact_threshold
-        cop_x = data[f"FP{plate_index}_Px"][contact] + (plate_index - 1) * (
-            PLATE_LENGTH + gap
-        ) + PLATE_LENGTH / 2
+        cop_x = (
+            data[f"FP{plate_index}_Px"][contact]
+            + (plate_index - 1) * (PLATE_LENGTH + gap)
+            + PLATE_LENGTH / 2
+        )
         cop_y = data[f"FP{plate_index}_Py"][contact]
         plate_ax.scatter(cop_x, cop_y, c=time[contact], s=5, cmap="viridis")
 
     _draw_plate_outlines(plate_ax, gap)
 
-    force_ax.axhline(contact_threshold, color="black",
-                     linestyle="--", linewidth=1)
-    force_ax.set(title="Vertical force |Fz|",
-                 xlabel="Time (s)", ylabel="|Fz| (N)")
+    force_ax.axhline(contact_threshold, color="black", linestyle="--", linewidth=1)
+    force_ax.set(title="Vertical force |Fz|", xlabel="Time (s)", ylabel="|Fz| (N)")
     force_ax.legend(ncol=3)
     force_ax.grid(alpha=0.3)
 
@@ -147,12 +146,10 @@ def animate_data(
     colors = ["tab:blue", "tab:orange", "tab:green"]
     force_lines = []
     for plate_index, color in enumerate(colors, start=1):
-        (line,) = force_ax.plot(
-            [], [], color=color, label=f"Plate {plate_index}")
+        (line,) = force_ax.plot([], [], color=color, label=f"Plate {plate_index}")
         force_lines.append(line)
 
-    force_ax.axhline(contact_threshold, color="black",
-                     linestyle="--", linewidth=1)
+    force_ax.axhline(contact_threshold, color="black", linestyle="--", linewidth=1)
     force_ax.set(
         title="Vertical force |Fz| — animation",
         xlabel="Time (s)",
@@ -185,8 +182,13 @@ def animate_data(
 
     # ---------- timestamp text ----------
     timestamp_text = plate_ax.text(
-        0.98, 0.98, "", transform=plate_ax.transAxes,
-        ha="right", va="top", fontsize=10,
+        0.98,
+        0.98,
+        "",
+        transform=plate_ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=10,
         bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7),
     )
 
@@ -198,27 +200,22 @@ def animate_data(
     def _update(frame: int) -> list:
         sample_index = frame_indices[frame]
         t = time[: sample_index + 1]
-        forces = [
-            np.abs(data[f"FP{i}_Fz"][: sample_index + 1]) for i in (1, 2, 3)
-        ]
+        forces = [np.abs(data[f"FP{i}_Fz"][: sample_index + 1]) for i in (1, 2, 3)]
 
         for line, f in zip(force_lines, forces):
             line.set_data(t, f)
 
         # COP — show only a short recent trail, so repeated walks remain clear.
         for i, (scat, (gx, gy, fz)) in enumerate(zip(cop_scatters, cop_data)):
-            first_index = np.searchsorted(
-                time, time[sample_index] - trail_seconds, side="left"
-            )
-            gx_curr = gx[first_index: sample_index + 1]
-            gy_curr = gy[first_index: sample_index + 1]
-            contact = fz[first_index: sample_index + 1] >= contact_threshold
+            first_index = np.searchsorted(time, time[sample_index] - trail_seconds, side="left")
+            gx_curr = gx[first_index : sample_index + 1]
+            gy_curr = gy[first_index : sample_index + 1]
+            contact = fz[first_index : sample_index + 1] >= contact_threshold
             scat.set_data(gx_curr[contact], gy_curr[contact])
 
         # Time indicator line
         current_time = time[frame]
-        time_indicator.set_data(
-            [current_time, current_time], force_ax.get_ylim())
+        time_indicator.set_data([current_time, current_time], force_ax.get_ylim())
 
         # Timestamp
         timestamp_text.set_text(f"t = {current_time:.2f} s")
@@ -226,7 +223,11 @@ def animate_data(
         return [*force_lines, *cop_scatters, time_indicator, timestamp_text]
 
     anim = animation.FuncAnimation(
-        figure, _update, frames=len(frame_indices), interval=1000.0 / fps, blit=True,
+        figure,
+        _update,
+        frames=len(frame_indices),
+        interval=1000.0 / fps,
+        blit=True,
     )
     return anim
 
@@ -258,8 +259,7 @@ def main() -> None:
         default=Path(__file__).with_name("force_plate_visualization.png"),
         help="Output path (PNG for static, GIF/MP4 for animation)",
     )
-    parser.add_argument("--no-show", action="store_true",
-                        help="Do not open a plot window")
+    parser.add_argument("--no-show", action="store_true", help="Do not open a plot window")
     parser.add_argument(
         "--no_animate",
         action="store_true",
@@ -283,8 +283,9 @@ def main() -> None:
     n_pts = len(data)
 
     if not args.no_animate:
-        anim = animate_data(data, args.threshold, args.gap,
-                            fps=args.fps, trail_seconds=args.trail_seconds)
+        anim = animate_data(
+            data, args.threshold, args.gap, fps=args.fps, trail_seconds=args.trail_seconds
+        )
 
         # Save if output has a movie/gif extension
         if args.output.suffix in (".gif", ".mp4", ".mov", ".avi"):

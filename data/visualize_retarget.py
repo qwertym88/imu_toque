@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Play retargeted qpos in the MuJoCo viewer without stepping dynamics."""
 import argparse
-from pathlib import Path
 import time
+from pathlib import Path
 
 import mujoco
 import mujoco.viewer
@@ -28,9 +28,15 @@ def main():
         qpos = motion["qpos"].copy()
         frames = motion["frame"].copy()
         fps = float(motion["fps"])
-    if (qpos.ndim != 2 or qpos.shape[1] != model.nq or len(qpos) == 0 or
-            len(frames) != len(qpos) or fps <= 0 or not np.isfinite(qpos).all() or
-            np.any(np.diff(frames) <= 0)):
+    if (
+        qpos.ndim != 2
+        or qpos.shape[1] != model.nq
+        or len(qpos) == 0
+        or len(frames) != len(qpos)
+        or fps <= 0
+        or not np.isfinite(qpos).all()
+        or np.any(np.diff(frames) <= 0)
+    ):
         raise ValueError("Motion frames, qpos, or frame rate are invalid for this model")
     times = (frames - frames[0]) / fps
     duration = times[-1] + 1 / fps
