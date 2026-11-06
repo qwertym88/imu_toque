@@ -47,6 +47,7 @@
                   <inertial pos="0.0141771 0 -0.0472801" quat="0.705993 0.705993 0.0396773 0.0396773" mass="1.48534" diaginertia="0.00549216 0.0052193 0.00237294" />
                   <joint name="left_ankle_roll_joint" range="-0.7 0.7" actuatorfrcrange="-30 30" axis="-1 0 0" />
                   <geom pos="0 0 0.045" quat="0.5 -0.5 0.5 0.5" type="mesh" rgba="0.7 0.7 0.7 1" mesh="link_left6" />
+                  <site name="left_foot" pos="0.02 0 -0.07" size="0.001" rgba="0 0 0 0" />
                 </body>
               </body>
             </body>
@@ -77,6 +78,7 @@
                   <inertial pos="0.0141771 0 -0.0472801" quat="0.705993 0.705993 0.0396773 0.0396773" mass="1.48534" diaginertia="0.00549216 0.0052193 0.00237294" />
                   <joint name="right_ankle_roll_joint" range="-0.7 0.7" actuatorfrcrange="-30 30" axis="-1 0 0" />
                   <geom pos="0 0 0.045" quat="0.5 -0.5 0.5 0.5" type="mesh" rgba="0.7 0.7 0.7 1" mesh="link_right6" />
+                  <site name="right_foot" pos="0.02 0 -0.07" size="0.001" rgba="0 0 0 0" />
                 </body>
               </body>
             </body>

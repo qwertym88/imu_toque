@@ -32,20 +32,30 @@ python data/retarget_xsens.py
 python data/visualize_retarget.py
 ```
 
+先根据原始传感器数据的foot xyz数据推测支撑脚，划分支撑模式，如图`xsense_foot_xyz_support_threshold.png`。重定向后的foot xyz能够保留原始数据的特征，见`retargeted_left_right_foot_xyz.png`。
+
 播放器使用 MuJoCo 的交互式窗口，只更新关节位置和正运动学，不执行动力学步进；地面只用于显示。空格暂停或继续，左右方向键暂停并逐帧移动，Home 回到第一帧。关闭窗口即可退出。使用 `--speed 0.5` 可半速播放，`--start-paused` 可从暂停状态开始。
 
 默认从 `data/xsense_raw.xlsx` 生成 `data/retargeted_motion.npz`，并使用 `model/szar_humanoid.xml` 的 `standing` 关键帧。可通过 `--input`、`--model` 和 `--output` 指定路径；播放器的 `--motion` 和 `--model` 也支持指定路径。
 
-算法将选定的 Xsens 参考帧映射到机器人站立姿态，以骨盆为参考拟合双膝和双足的位置变化、足部朝向变化，并对关节限位和帧间变化进行约束；上半身数据不参与计算。位置缩放默认为参考帧的人体和机器人双腿长度之比的平均值，也可以用 `--scale` 指定。`--reference-frame` 指定零起始的参考行号；应选择身体直立、双脚平稳的姿态，并在结果中检查坐标方向和足部姿态。该帧不是自动识别的标定姿势，原始帧与机器人站姿差异会影响整个结果。
+算法将选定的 Xsens 参考帧映射到机器人站立姿态，逐帧联合求解浮动基座 xyz 平移和双腿 12 个关节角。骨盆朝向跟随标定后的 Xsens 骨盆；双足世界位置、朝向和支撑高度为主要目标，膝部位置为较低权重目标，并惩罚帧间关节变化和过大的基座平移修正；关节角受限位约束，上半身不参与计算。位置缩放默认为参考帧的人体和机器人双腿长度之比的平均值，也可以用 `--scale` 指定。`--reference-frame` 指定零起始的参考行号；应选择身体直立、双脚平稳的姿态，并在结果中检查坐标方向和足部姿态。该帧不是自动识别的标定姿势，原始帧与机器人站姿差异会影响整个结果。
 
 输出 NPZ 的 `qpos` 为 MuJoCo 模型的浮动基座和关节位置，`frame` 与 `fps` 保存原始时间轴；`joint_names` 和 `joint_qpos_addresses` 给出关节名称及其在 `qpos` 的列号。`errors` 的维度为帧、左右腿、误差项，误差项依次为膝盖位置误差（米）、足部位置误差（米）、足部朝向误差（弧度），衡量相对于经过标定和缩放的目标的拟合程度。文件还保存 `scale` 和 `reference_frame`。
 
 NPZ 还包含机器人重定向结果的 link 位姿：
 
-- link_names：7 个机器人 link，依次为 pelvis、左右腿的 hip_yaw_link、knee_link、ankle_roll_link。
-- link_positions：形状 (帧数, 7, 3)，各 link 坐标系原点的世界坐标，单位米。
-- link_orientations：形状 (帧数, 7, 4)，各 link 坐标系在世界坐标系中的单位四元数，分量顺序 (w, x, y, z)。
+- link_names：7 个机器人 link（pelvis 和左右腿各自的 hip_yaw_link、knee_link、ankle_roll_link），再加 left_foot、right_foot 足部参考坐标系。
+- link_positions：形状 (帧数, 9, 3)，坐标系原点的世界坐标，单位米。
+- link_orientations：形状 (帧数, 9, 4)，坐标系在世界坐标系中的单位四元数，分量顺序 (w, x, y, z)。
 
-这些值由最终机器人 qpos 运行 MuJoCo 正运动学得到；其中 ankle_roll_link 是当前模型里用作足部参考的 link。可通过 link_names 查找列号，再读取同一帧的两个位姿数组。
+这些值由最终机器人 qpos 运行 MuJoCo 正运动学得到。left_foot、right_foot 参考系按 URDF 相对 ankle_roll_link 的固定偏移 (0.02, 0, -0.07) 米定义。
+
+支撑判定默认使用 --ground-percentile 7.0 和 --support-threshold 0.01：先用原始左右 Xsens Foot z 的第 7 百分位分别估计高度基线，再将高于各自基线不超过 0.01 m 的脚判为支撑；若两脚都不满足，则回退为原始 z 较低的脚支撑。support_mask (帧数, 2) 列顺序为左、右；support_state 标记单双支撑；ground_percentile 和 support_threshold 记录本次使用的参数。
+
+支撑脚目标 z 设为机器人地面参考高度 support_ground_z；摆动脚目标 z 为地面高度加按比例缩放的 Xsens 足部离基线高度。左右足 xy 沿经过标定和缩放的 Xsens 世界坐标位移移动；允许支撑期内的贴地转动与原始水平位移，不再冻结落地时的 xy 或姿态。这里的接触表示足部参考点落地，不要求整只脚掌保持水平，也不计算接触力。支撑期足部位置残差的 xyz 权重为 (8, 0.5, 1000)，摆动期为 --foot-axis-weights（默认 8, 0.5, 8）；y 保持较软以适应髋宽差异。
+
+足部姿态目标直接由 Xsens 世界四元数计算，标定为 R_target(t) = C R_xsens(t) [C R_xsens(ref)]^T R_robot(ref)，其中 C 为参考帧 Xsens 骨盆到机器人骨盆的世界旋转对齐。该变换在参考帧返回机器人站姿的脚掌朝向，并保持原始的逐帧旋转变化；支撑/摆动切换不改变姿态目标。求解使用 SO(3) 旋转向量误差而非 Euler 角相减；--foot-orientation-weight 默认 5.0，对支撑脚和摆动脚均生效。
+
+foot_position_errors 保存每帧左右脚相对目标的世界坐标 xyz 残差（米）。foot_contact_targets (帧数, 2, 3) 保存两脚位置目标，包括摆动期；foot_orientation_targets (帧数, 2, 4) 为世界姿态目标的 wxyz 四元数；foot_orientation_errors (帧数, 2, 3) 为 log(R_target^T R_actual) 的旋转向量（弧度，在目标坐标系中表达，其模长为总体旋转误差，并非 RPY 三个角度误差）。errors[..., 2] 为上述总体误差。support_base_adjustment 保存联合优化得到的相对映射骨盆轨迹的 xyz 修正。solver_success、solver_nfev 保存每帧优化器的收敛标志和迭代函数求值次数。
 
 这是运动学拟合，不保证足部接触、平衡、速度或力矩可行性。将结果用于实机前，需要另行做接触、动力学、速度及碰撞检查和轨迹处理。模型 XML 和 URDF 的运动学参数应保持一致。
