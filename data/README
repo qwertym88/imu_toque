@@ -41,32 +41,41 @@ python data/visualize_retarget.py
 在 `humanoid_sim` 环境中运行：
 
 ```bash
-python data/simulate_wbc.py
+python data/simulate_wbc.py --speed 0.25 --duration 36
 ```
 
 该程序在 MuJoCo 中执行真实动力学步进，并在每个仿真步读取当前状态。QP 以
 `[qacc(18), 左右脚 wrench(各 6), tau(12)]` 组装动力学与接触等式，消元后只对归一化
-关节力矩求解。质心线动量率、摆动脚、pelvis 和关节姿态使用归一化加权加速度任务；质心
-参考由重定向 qpos/qvel 计算，并在单支撑期投影到支撑脚附近。pelvis 水平位置权重与高度、
-姿态权重分开。力矩界限、方形摩擦、每脚 CoP 矩形及合力 ZMP 凸支撑多边形为硬不等式；另有
-较低权重的内部 ZMP 目标。硬支撑由 NPZ 计划支撑与 MuJoCo 实际脚底接触的交集确定，支撑脚
-使用落脚时记录的位姿锚点；仍接触地面的计划摆动脚按摆动任务尝试离地。降低 `--speed` 时
-同步缩放参考速度与加速度。`--pelvis-xy-weight` 默认 1.0，低于 pelvis 高度权重 10.0；
-内部 ZMP 目标权重默认为 0.1，可用 `--single-support-zmp-scale` 单独调整单支撑目标权重，
-但不会放宽硬 ZMP 边界。
+关节力矩求解。默认用未来支撑脚序列生成常高度 LIP/DCM 参考，在双支撑阶段按预计卸载时刻
+转移重心；下层仍以 COM 动量率和 ZMP 任务跟踪参考。`--balance-mode retarget` 可切回从重定向
+COM 生成目标。pelvis 水平位置权重与高度、姿态权重分开。力矩界限、方形摩擦、每脚 CoP 矩形
+及合力 ZMP 凸支撑多边形为硬不等式；ZMP 软目标默认用局部线性化的 ZMP 位置误差，并对合力
+竖直方向提供目标和下界。实际支撑须同时满足接触计划与 MuJoCo 脚底碰撞；落地脚压平并对齐
+地面。降低 `--speed` 时同步缩放参考速度与加速度。
+
+`--load-transfer-time` 设置支撑转换前的重心转移窗口，`--dcm-gain` 设置状态误差反馈；
+`--landing-preview` 在预期触地前降低并压平摆动脚，`--touchdown-grace` 可短时保留上一支撑脚
+的实际接触约束。`--angular-momentum-weight` 和 `--joint-limit-horizon` 是实验性选项，默认关闭。
+活动支撑脚合计的最小承重比例由 `--min-support-force-ratio` 设置；未检测到的接触不会分配
+支撑 wrench，可能进入无支撑或不可行状态。
+
+预瞄器使用已知未来接触序列和规划落脚点，不会重写重定向 NPZ；其常高度、零质心角动量率
+假设仅用于生成参考，不构成全身动态可行性的证明。实验命令、消融与失败边界见 `WBC_EXPERIMENTS.md`。
 
 可用 `--headless --duration 1.0` 做短时无窗口测试，`--speed 0.5` 降低参考播放速度，
 `--cop-x` / `--cop-y` 设置脚底接触矩形的半长和半宽。默认脚底盒尺寸是原型近似值，应按
-真实脚底几何校准。`--output /tmp/wbc_trace.npz` 可保存每步的状态、期望力矩、预测接触
-wrench、预测合力 ZMP 及目标、支撑模式和 QP 残差。模型 XML 将可视网格排除在碰撞之外，并在
-每只脚添加了显式盒形 sole 碰撞体；当前没有腿部自碰撞。
+真实脚底几何校准。`--output /tmp/wbc_trace.npz` 可保存每步的状态、QP 预测 wrench/ZMP、
+MuJoCo 实际接触 wrench/ZMP、质心/DCM 及目标、力矩和支撑模式。可用
+`python data/analyze_wbc.py /tmp/wbc_trace.npz --plot /tmp/wbc_trace.png` 汇总并绘图。模型 XML
+将可视网格排除在碰撞之外，并在每只脚添加了显式盒形 sole 碰撞体；当前没有腿部自碰撞。
 
 求解器遇到不可行 QP 或消元病态时会停止并报告当时的状态，不会悄悄放松摩擦、CoP 或
-动力学约束。加入质心任务、接触调度和合力 ZMP 约束后，慢速测试能保持初始双支撑，但首个
-单支撑阶段仍会丢失支撑脚接触并跌倒；目前还不是稳定步行控制器。测试中预测 ZMP 保持在硬
-多边形约束内，但这没有保证 MuJoCo 实际支撑持续存在。质心角动量目标和 MPC 名义 wrench
-尚未从重定向数据中获得，也未纳入力矩解。trace 保存预测合力 ZMP 和内部目标；下一步应对照
-实际接触力、CoP、力矩饱和与质心速度，确认预测/物理接触差异并检查是否超出单支撑可捕获范围。
+动力学约束。预瞄方案在 `--speed 0.25` 下通过前 36 秒物理仿真，左右单支撑阶段的实际接触均
+建立；预测与 MuJoCo 实际 ZMP RMSE 约为 x `1.8 mm`、y `3.4 mm`。但延长测试在约 44.5 秒、
+后续一次支撑转换时仍会 QP 不可行；原速测试约 9.4 秒也会失败。因此目前只能说慢放下连续走过
+数次支撑转换，不能称为完整稳定步行控制器。前 36 秒中右脚单支撑累计约 20 秒，第一次连续
+单支撑约 17.3 秒，对应原参考约 4.33 秒；不能据慢放时长断定原始接触标签有误。下一步需检查
+后续换脚的接触模式、落脚位置及关节可达性。记录的预测/物理 wrench、ZMP 和 DCM 可用于定位。
 
 默认从 `data/xsense_raw.xlsx` 生成 `data/retargeted_motion.npz`，并使用 `model/szar_humanoid.xml` 的 `standing` 关键帧。可通过 `--input`、`--model` 和 `--output` 指定路径；播放器的 `--motion` 和 `--model` 也支持指定路径。
 

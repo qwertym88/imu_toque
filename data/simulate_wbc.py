@@ -2,6 +2,7 @@
 """Track a retargeted motion with a condensed inverse-dynamics WBC QP."""
 
 import argparse
+import json
 from pathlib import Path
 import time
 
@@ -13,6 +14,8 @@ from scipy.spatial import ConvexHull
 from scipy import sparse
 from scipy.spatial.transform import Rotation
 from scipy.signal import savgol_filter
+
+from wbc_balance import BalanceReference, project_to_polygon
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -132,7 +135,7 @@ def load_reference(model, path, smooth_window):
 def interpolate_rotation(rotations, index, alpha):
     r0 = rotations[index]
     r1 = rotations[min(index + 1, len(rotations) - 1)]
-    return r0 * Rotation.from_rotvec(alpha * (r1 * r0.inv()).as_rotvec())
+    return Rotation.from_rotvec(alpha * (r1 * r0.inv()).as_rotvec()) * r0
 
 
 def interp(array, index, alpha):
@@ -144,6 +147,8 @@ def task_state(model, data, name, body_id=None, site_id=None):
     jp = np.zeros((3, model.nv))
     jr = np.zeros((3, model.nv))
     if site_id is not None:
+        if body_id is None:
+            body_id = int(model.site_bodyid[site_id])
         mujoco.mj_jacSite(model, data, jp, jr, site_id)
         point = data.site_xpos[site_id].copy()
         rotation = data.site_xmat[site_id].reshape(3, 3).copy()
@@ -179,6 +184,73 @@ def skew(vector):
     return np.array([[0.0, -z, y], [z, 0.0, -x], [-y, x, 0.0]])
 
 
+def ground_wrench_matrix(data, support, site_ids, ground_z):
+    matrix = np.zeros((6, NZ))
+    origin = np.array([0.0, 0.0, ground_z])
+    for foot, side in enumerate(SIDES):
+        if not support[foot]:
+            continue
+        lever = data.site_xpos[site_ids[f"{side}_foot"]] - origin
+        block = np.eye(6)
+        block[3:, :3] = skew(lever)
+        matrix[:, NV + 6 * foot : NV + 6 * (foot + 1)] = block
+    return matrix
+
+
+def resultant_zmp(wrench, positions, ground_z, minimum_force=1.0):
+    force = wrench[:, :3].sum(axis=0)
+    moments = wrench[:, 3:] + np.cross(positions - np.array([0.0, 0.0, ground_z]), wrench[:, :3])
+    moment = moments.sum(axis=0)
+    zmp = (
+        np.array([-moment[1], moment[0]]) / force[2]
+        if force[2] > minimum_force
+        else np.full(2, np.nan)
+    )
+    return zmp, force
+
+
+def linearized_zmp_task(numerator, normal_row, previous, body_weight, target):
+    normal = float(normal_row @ previous)
+    if normal > 0.2 * body_weight:
+        point = numerator @ previous / normal
+    else:
+        normal = body_weight
+        point = target.copy()
+    return (numerator - point[:, None] * normal_row) / normal, point - target
+
+
+def measured_contact_wrenches(model, data, reference):
+    """World [force; moment] on each sole, about its site, after mj_step.
+
+    mj_step's contact geometry and force outputs describe its pre-integration
+    configuration, matching the state saved for this control tick. Do not call
+    mj_forward between the step and reading these outputs.
+    """
+    wrench = np.zeros((2, 6))
+    counts = np.zeros(2, dtype=int)
+    ground = reference["ground_geom_id"]
+    for contact_index in range(data.ncon):
+        contact = data.contact[contact_index]
+        pair = (int(contact.geom1), int(contact.geom2))
+        for foot, side in enumerate(SIDES):
+            sole = reference["sole_geom_ids"][side]
+            if set(pair) != {ground, sole} or contact.efc_address < 0:
+                continue
+            local = np.zeros(6)
+            mujoco.mj_contactForce(model, data, contact_index, local)
+            # Contact normal points from geom1 to geom2; force is on geom2.
+            sign = 1.0 if pair[1] == sole else -1.0
+            rotation = contact.frame.reshape(3, 3).T
+            force = sign * (rotation @ local[:3])
+            moment = sign * (rotation @ local[3:])
+            site = reference["site_ids"][f"{side}_foot"]
+            wrench[foot, :3] += force
+            wrench[foot, 3:] += moment + np.cross(contact.pos - data.site_xpos[site], force)
+            if local[0] > 1.0:
+                counts[foot] += 1
+    return wrench, counts
+
+
 def support_polygon(data, support, site_ids, cop_x, cop_y):
     corners = []
     for foot, side in enumerate(SIDES):
@@ -209,6 +281,9 @@ def build_inequalities(
     cop_y,
     zmp_margin,
     tau_limits,
+    minimum_normal_force=0.0,
+    joint_limit_horizon=0.0,
+    joint_limit_margin=0.01,
 ):
     rows, upper = [], []
     # Actuator bounds are expressed in ctrl units; model motors have gear=1.
@@ -267,15 +342,50 @@ def build_inequalities(
     # Keep a fixed row count per contact mode for the cached OSQP workspaces.
     for _ in range(8 - len(equations)):
         append_constraint(rows, upper, np.zeros(NZ), 0.0)
+    total_wrench = ground_wrench_matrix(data, support, site_ids, ground_z)
+    append_constraint(
+        rows, upper, -total_wrench[2], -minimum_normal_force if np.any(support) else 0.0
+    )
+    if joint_limit_horizon > 0:
+        for joint in model.actuator_trnid[:, 0]:
+            if not model.jnt_limited[joint]:
+                continue
+            dof, address = int(model.jnt_dofadr[joint]), int(model.jnt_qposadr[joint])
+            predicted = data.qpos[address] + joint_limit_horizon * data.qvel[dof]
+            factor = 0.5 * joint_limit_horizon**2
+            row = np.zeros(NZ)
+            row[dof] = 1.0
+            append_constraint(
+                rows,
+                upper,
+                row,
+                (model.jnt_range[joint, 1] - joint_limit_margin - predicted) / factor,
+            )
+            append_constraint(
+                rows,
+                upper,
+                -row,
+                (predicted - model.jnt_range[joint, 0] - joint_limit_margin) / factor,
+            )
 
     return np.asarray(rows), np.asarray(upper)
 
 
-def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_anchors, qp_solvers):
+def solve_reduced_qp(
+    model,
+    data,
+    reference,
+    time_s,
+    args,
+    tau_limits,
+    contact_anchors,
+    qp_solvers,
+    controller_state,
+):
     index = min(int(time_s * reference["fps"]), len(reference["time"]) - 1)
     alpha = min(max(time_s * reference["fps"] - index, 0.0), 1.0)
-    support_index = index if alpha < 0.5 else min(index + 1, len(reference["time"]) - 1)
-    scheduled_support = reference["support"][support_index]
+    # Contact phases are zero-order held; do not round liftoff half a frame early.
+    scheduled_support = reference["support"][index]
 
     mujoco.mj_forward(model, data)
     physical_support = np.zeros(2, dtype=bool)
@@ -288,12 +398,29 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
     # The retargeted contact schedule authorizes support. A foot that still
     # brushes the ground after liftoff is commanded as swing so it can release.
     support = physical_support & scheduled_support
+    previous_schedule = controller_state.get("scheduled_support")
+    if previous_schedule is None or np.any(previous_schedule != scheduled_support):
+        controller_state["mode_changed_at"] = data.time
+        controller_state["transition_support"] = controller_state.get("support", support).copy()
+    if (
+        not np.any(support)
+        and data.time - controller_state["mode_changed_at"] < args.touchdown_grace
+    ):
+        support = physical_support & controller_state["transition_support"]
+    controller_state["scheduled_support"] = scheduled_support.copy()
+    controller_state["support"] = support.copy()
     for foot, side in enumerate(SIDES):
         if support[foot] and contact_anchors[side] is None:
             site_id = reference["site_ids"][f"{side}_foot"]
+            anchor_position = data.site_xpos[site_id].copy()
+            anchor_rotation = Rotation.from_matrix(data.site_xmat[site_id].reshape(3, 3).copy())
+            if args.stance_pose == "flat":
+                anchor_position[2] = data.geom_xpos[reference["ground_geom_id"], 2]
+                matrix = anchor_rotation.as_matrix()
+                anchor_rotation = Rotation.from_euler("z", np.arctan2(matrix[1, 0], matrix[0, 0]))
             contact_anchors[side] = (
-                data.site_xpos[site_id].copy(),
-                Rotation.from_matrix(data.site_xmat[site_id].reshape(3, 3).copy()),
+                anchor_position,
+                anchor_rotation,
             )
         elif not support[foot]:
             contact_anchors[side] = None
@@ -329,9 +456,13 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
     mujoco.mj_jacSubtreeCom(model, data, com_jac, 0)
     com_velocity = com_jac @ data.qvel
     com_jdot_v = np.zeros(3)
+    angular_jac = np.zeros((3, model.nv))
+    mujoco.mj_angmomMat(model, data, angular_jac, 0)
+    angular_momentum = angular_jac @ data.qvel
+    angular_bias = np.zeros(3)
     if np.linalg.norm(data.qvel) > 1e-8:
         epsilon = 1e-5
-        probe = mujoco.MjData(model)
+        probe = controller_state["probe"]
         probe.qpos[:] = data.qpos
         mujoco.mj_integratePos(model, probe.qpos, data.qvel, epsilon)
         probe.qvel[:] = data.qvel
@@ -339,6 +470,9 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
         probe_jac = np.zeros((3, model.nv))
         mujoco.mj_jacSubtreeCom(model, probe, probe_jac, 0)
         com_jdot_v = ((probe_jac - com_jac) / epsilon) @ data.qvel
+        probe_angular = np.zeros((3, model.nv))
+        mujoco.mj_angmomMat(model, probe, probe_angular, 0)
+        angular_bias = ((probe_angular - angular_jac) / epsilon) @ data.qvel
     com_target = interp(reference["com"], index, alpha)
     if np.any(support):
         support_positions = np.array(
@@ -365,6 +499,38 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
     )
     com_acc_command = np.clip(com_acc_command, -args.com_accel_limit, args.com_accel_limit)
     com_acc_command[2] = max(com_acc_command[2], -args.com_vertical_down_limit)
+    zmp_faces, zmp_target = support_polygon(
+        data, support, reference["site_ids"], args.cop_x, args.cop_y
+    )
+    ground_z = data.geom_xpos[reference["ground_geom_id"], 2]
+    height = max(reference["com"][0, 2] - ground_z, 0.1)
+    omega = np.sqrt(9.81 / height)
+    dcm = data.subtree_com[0, :2] + com_velocity[:2] / omega
+    dcm_target = com_target[:2].copy()
+    load_target = scheduled_support.astype(float) / np.count_nonzero(scheduled_support)
+    if args.balance_mode == "preview":
+        plan = reference["balance"]
+        com_xy, vel_xy, dcm_target, zmp_target, load_target, planned_feet = plan.sample(data.time)
+        active = np.flatnonzero(support)
+        if len(active):
+            shift = np.mean(
+                [contact_anchors[SIDES[f]][0][:2] - planned_feet[f] for f in active], axis=0
+            )
+            com_xy += shift
+            dcm_target += shift
+            zmp_target += shift
+        com_target = np.r_[com_xy, reference["com"][0, 2]]
+        com_velocity_target = np.r_[vel_xy, 0.0]
+        zmp_command = zmp_target + (1.0 + args.dcm_gain / omega) * (dcm - dcm_target)
+        if len(zmp_faces):
+            zmp_command = project_to_polygon(zmp_command, zmp_faces, args.zmp_margin)
+        com_acc_command = np.r_[
+            omega**2 * (data.subtree_com[0, :2] - zmp_command),
+            args.kp_com * (com_target[2] - data.subtree_com[0, 2]) - args.kd_com * com_velocity[2],
+        ]
+        com_acc_command = np.clip(com_acc_command, -args.com_accel_limit, args.com_accel_limit)
+        com_acc_command[2] = max(com_acc_command[2], -args.com_vertical_down_limit)
+        zmp_target = zmp_command
 
     # Full equality system for z=[qacc(18), both 6D foot wrenches, tau(12)].
     Aeq = np.zeros((30, NZ))
@@ -408,33 +574,42 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
         np.full(3, args.momentum_weight / (args.linear_accel_scale**2)),
         np.ones(3),
     )
-    zmp_faces, zmp_target = support_polygon(
-        data, support, reference["site_ids"], args.cop_x, args.cop_y
-    )
+    if args.angular_momentum_weight > 0:
+        angular_scale = model.body_subtreemass[0] * height
+        add_task(
+            H,
+            g,
+            angular_jac / angular_scale,
+            angular_bias / angular_scale,
+            -args.angular_momentum_gain * angular_momentum / angular_scale,
+            np.full(3, args.angular_momentum_weight),
+            np.full(3, args.linear_accel_scale),
+        )
     if len(zmp_faces):
-        zmp_task = np.zeros((2, NZ))
-        ground_z = data.geom_xpos[reference["ground_geom_id"], 2]
-        plane_origin = np.array([0.0, 0.0, ground_z])
-        for foot, side in enumerate(SIDES):
-            if not support[foot]:
-                continue
-            site_id = reference["site_ids"][f"{side}_foot"]
-            lever = data.site_xpos[site_id] - plane_origin
-            local_to_plane = np.eye(6)
-            local_to_plane[3:, :3] = skew(lever)
-            lambda_slice = slice(NV + 6 * foot, NV + 6 * (foot + 1))
-            zmp_task[0, lambda_slice] = (
-                np.array([0.0, 0.0, -zmp_target[1], 1.0, 0.0, 0.0]) @ local_to_plane
+        total_wrench = ground_wrench_matrix(data, support, reference["site_ids"], ground_z)
+        normal_row = total_wrench[2]
+        numerator = np.vstack((-total_wrench[4], total_wrench[3]))
+        body_weight = model.body_subtreemass[0] * 9.81
+        normal_target = model.body_subtreemass[0] * (9.81 + com_acc_command[2])
+        if args.zmp_cost == "linearized":
+            previous = controller_state.get("previous_z", np.zeros(NZ))
+            # First-order ratio, not Fz^2 times a position error. Its affine
+            # offset is essential; homogeneous wrench scaling has zero gradient.
+            zmp_task, zmp_offset = linearized_zmp_task(
+                numerator, normal_row, previous, body_weight, zmp_target
             )
-            zmp_task[1, lambda_slice] = (
-                np.array([0.0, 0.0, -zmp_target[0], 0.0, -1.0, 0.0]) @ local_to_plane
-            )
-        zmp_scale = model.body_subtreemass[0] * 9.81 * args.zmp_moment_scale
+        else:
+            zmp_task = (numerator - zmp_target[:, None] * normal_row) / body_weight
+            zmp_offset = np.zeros(2)
         mode_weight = args.zmp_weight
         if np.count_nonzero(support) == 1:
             mode_weight *= args.single_support_zmp_scale
-        zmp_weight = mode_weight / (zmp_scale * zmp_scale)
+        zmp_weight = mode_weight / args.zmp_moment_scale**2
         H += zmp_task.T @ (zmp_weight * zmp_task)
+        g += zmp_task.T @ (zmp_weight * zmp_offset)
+        force_weight = args.normal_force_weight / body_weight**2
+        H += force_weight * np.outer(normal_row, normal_row)
+        g -= force_weight * normal_row * normal_target
     task_weights = {
         "swing_position": args.swing_weight,
         "swing_orientation": args.swing_orientation_weight,
@@ -457,6 +632,34 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
         target_acc = args.speed**2 * interp(reference["acc"][name], index, alpha)
         target_rotation = interpolate_rotation(reference["rot"][name], index, alpha).as_matrix()
         recovery = not is_pelvis and scheduled_support[foot_index] and not support[foot_index]
+        landing_blend = 0.0
+        if not is_pelvis and not support[foot_index] and args.landing_preview > 0:
+            future = reference["touchdowns"][foot_index]
+            future_index = np.searchsorted(future, time_s, side="left")
+            if future_index < len(future):
+                until_touchdown = (future[future_index] - time_s) / args.speed
+                landing_blend = float(
+                    np.clip(1.0 - until_touchdown / args.landing_preview, 0.0, 1.0)
+                )
+        if recovery or landing_blend > 0:
+            # A small landing bias removes the soft-task hovering equilibrium.
+            # Once contact is detected the normal hard stance constraint takes over.
+            blend = 1.0 if recovery else landing_blend**2 * (3.0 - 2.0 * landing_blend)
+            target_position[2] += blend * (ground_z - args.landing_depth - target_position[2])
+            target_velocity[2] *= 1.0 - blend
+            target_acc[2] *= 1.0 - blend
+            yaw = np.arctan2(target_rotation[1, 0], target_rotation[0, 0])
+            flat = Rotation.from_euler("z", yaw)
+            delta = flat * Rotation.from_matrix(target_rotation).inv()
+            target_rotation = (
+                Rotation.from_rotvec(blend * delta.as_rotvec())
+                * Rotation.from_matrix(target_rotation)
+            ).as_matrix()
+            target_velocity[3:] *= 1.0 - blend
+            target_acc[3:] *= 1.0 - blend
+            if recovery:
+                target_velocity[:] = 0.0
+                target_acc[:] = 0.0
         kp_position = args.kp_contact if recovery else args.kp_position
         kd_position = args.kd_contact if recovery else args.kd_position
         kp_orientation = args.kp_contact if recovery else args.kp_orientation
@@ -486,7 +689,13 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
             )
             if recovery:
                 weights[:3] = args.support_recovery_weight
-                weights[3:] = args.support_recovery_weight * args.swing_orientation_weight
+                weights[3:] = (
+                    args.support_recovery_weight
+                    * args.swing_orientation_weight
+                    / max(args.swing_weight, 1e-8)
+                )
+            if recovery or landing_blend > 0:
+                weights[2] += blend * (args.landing_height_weight - weights[2])
         scales = np.array([args.linear_accel_scale] * 3 + [args.angular_accel_scale] * 3)
         add_task(
             H, g, J, jdot_v, np.r_[linear_cmd, angular_cmd], weights / (scales * scales), np.ones(6)
@@ -546,6 +755,9 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
         args.cop_y,
         args.zmp_margin,
         tau_limits,
+        args.min_support_force_ratio * model.body_subtreemass[0] * 9.81,
+        args.joint_limit_horizon,
+        args.joint_limit_margin,
     )
     A_reduced = C @ T @ tau_scale
     upper_reduced = upper - C @ p
@@ -597,6 +809,7 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
         raise RuntimeError(
             f"QP residual too large (eq={eq_residual:.3e}, inequality={ineq_violation:.3e})"
         )
+    controller_state["previous_z"] = z.copy()
     return (
         z,
         result.info.iter,
@@ -606,6 +819,21 @@ def solve_reduced_qp(model, data, reference, time_s, args, tau_limits, contact_a
         support,
         scheduled_support,
         physical_support,
+        {
+            "com": data.subtree_com[0].copy(),
+            "com_velocity": com_velocity,
+            "com_target": com_target,
+            "dcm": dcm,
+            "dcm_target": dcm_target,
+            "com_acc_command": com_acc_command,
+            "zmp_target": zmp_target if len(zmp_faces) else np.full(2, np.nan),
+            "load_target": load_target,
+            "com_acc_qp": com_jac @ z[:NV] + com_jdot_v,
+            "com_jac": com_jac,
+            "com_jdot_v": com_jdot_v,
+            "zmp_faces": zmp_faces,
+            "angular_momentum": angular_momentum,
+        },
     )
 
 
@@ -619,6 +847,38 @@ def main():
         "--output", type=Path, default=None, help="optional NPZ trace for torque/QP analysis"
     )
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--balance-mode", choices=("preview", "retarget"), default="preview")
+    parser.add_argument(
+        "--load-transfer-time",
+        type=float,
+        default=2.0,
+        help="load-transfer window in simulation seconds",
+    )
+    parser.add_argument("--dcm-gain", type=float, default=3.0)
+    parser.add_argument(
+        "--landing-depth", type=float, default=0.002, help="landing target below ground plane in m"
+    )
+    parser.add_argument(
+        "--landing-preview",
+        type=float,
+        default=0.3,
+        help="flatten and lower swing foot before touchdown, simulation seconds",
+    )
+    parser.add_argument("--landing-height-weight", type=float, default=400.0)
+    parser.add_argument(
+        "--touchdown-grace",
+        type=float,
+        default=0.0,
+        help="maximum time to retain actual old support if planned new support has not touched down",
+    )
+    parser.add_argument("--stance-pose", choices=("flat", "anchor"), default="flat")
+    parser.add_argument(
+        "--joint-limit-horizon",
+        type=float,
+        default=0.0,
+        help="constant-acceleration joint-limit prediction horizon (s), 0 disables",
+    )
+    parser.add_argument("--joint-limit-margin", type=float, default=0.01)
     parser.add_argument("--friction", type=float, default=0.8)
     parser.add_argument("--cop-x", type=float, default=0.07, help="sole half-length in local x (m)")
     parser.add_argument("--cop-y", type=float, default=0.04, help="sole half-width in local y (m)")
@@ -630,14 +890,19 @@ def main():
     parser.add_argument("--pelvis-weight", type=float, default=None, help=argparse.SUPPRESS)
     parser.add_argument("--pelvis-orientation-weight", type=float, default=10.0)
     parser.add_argument("--zmp-weight", type=float, default=0.1)
+    parser.add_argument("--zmp-cost", choices=("linearized", "moment"), default="linearized")
+    parser.add_argument("--normal-force-weight", type=float, default=10.0)
+    parser.add_argument("--min-support-force-ratio", type=float, default=0.2)
     parser.add_argument("--single-support-zmp-scale", type=float, default=1.0)
     parser.add_argument(
-        "--zmp-moment-scale", type=float, default=0.05, help="ZMP moment residual scale in m"
+        "--zmp-moment-scale", type=float, default=0.05, help="ZMP residual length scale in m"
     )
     parser.add_argument(
         "--zmp-margin", type=float, default=0.005, help="inward support-polygon margin in m"
     )
-    parser.add_argument("--momentum-weight", type=float, default=100.0)
+    parser.add_argument("--momentum-weight", type=float, default=1000.0)
+    parser.add_argument("--angular-momentum-weight", type=float, default=0.0)
+    parser.add_argument("--angular-momentum-gain", type=float, default=5.0)
     parser.add_argument("--com-accel-limit", type=float, default=2.0)
     parser.add_argument("--com-vertical-down-limit", type=float, default=0.25)
     parser.add_argument("--com-support-margin", type=float, default=0.035)
@@ -672,10 +937,37 @@ def main():
         parser.error("zmp margin must be non-negative and smaller than both CoP dimensions")
     if args.zmp_weight < 0 or args.single_support_zmp_scale < 0 or args.zmp_moment_scale <= 0:
         parser.error("zmp weights must be non-negative and zmp moment scale must be positive")
+    if not 0 <= args.min_support_force_ratio < 1 or args.normal_force_weight < 0:
+        parser.error(
+            "minimum support force ratio must be in [0, 1), normal force weight non-negative"
+        )
 
     model = mujoco.MjModel.from_xml_path(str(args.model.resolve()))
     data = mujoco.MjData(model)
     reference = load_reference(model, args.motion, args.smooth_window)
+    if args.load_transfer_time <= 0 or args.dcm_gain < 0:
+        parser.error("load transfer time must be positive and DCM gain non-negative")
+    if args.angular_momentum_weight < 0 or args.angular_momentum_gain < 0:
+        parser.error("angular momentum gains and weights must be non-negative")
+    if not 0 <= args.landing_depth <= 0.01:
+        parser.error("landing depth must be between 0 and 0.01 m")
+    if args.landing_preview < 0 or args.touchdown_grace < 0 or args.landing_height_weight < 0:
+        parser.error("landing preview and touchdown grace must be non-negative")
+    if args.joint_limit_horizon < 0 or args.joint_limit_margin < 0:
+        parser.error("joint limit horizon and margin must be non-negative")
+    reference["touchdowns"] = [
+        reference["time"][
+            np.flatnonzero(reference["support"][1:, f] & ~reference["support"][:-1, f]) + 1
+        ]
+        for f in range(2)
+    ]
+    if args.balance_mode == "preview":
+        reference["balance"] = BalanceReference(
+            reference,
+            args.speed,
+            args.load_transfer_time,
+            reference["com"][0, 2] - model.geom_pos[reference["ground_geom_id"], 2],
+        )
     if model.nv != NV or model.nu != NTAU:
         raise ValueError(f"This prototype expects nv=18 and nu=12; got {model.nv}, {model.nu}")
     actuator_joint_ids = model.actuator_trnid[:, 0]
@@ -687,7 +979,7 @@ def main():
             tau_limits[i] = np.max(np.abs(model.actuator_ctrlrange[i]))
 
     data.qpos[:] = reference["qpos"][0]
-    data.qvel[:] = reference["qvel"][0]
+    data.qvel[:] = args.speed * reference["qvel"][0]
     mujoco.mj_forward(model, data)
     reference_duration = reference["duration"] / args.speed
     duration = (
@@ -699,6 +991,7 @@ def main():
     state = {"failed": None, "steps": 0, "max_eq": 0.0, "max_ineq": 0.0, "max_rcond": 1.0}
     contact_anchors = {side: None for side in SIDES}
     qp_solvers = {}
+    controller_state = {"probe": mujoco.MjData(model)}
     trace = {
         name: []
         for name in (
@@ -713,6 +1006,27 @@ def main():
             "support",
             "physical_support",
             "planned_support",
+            "com",
+            "com_velocity",
+            "com_target",
+            "dcm",
+            "dcm_target",
+            "com_acc_command",
+            "com_acc_qp",
+            "com_acc_actual",
+            "qacc_actual",
+            "wrench_actual",
+            "zmp_actual",
+            "normal_force",
+            "normal_force_actual",
+            "contact_points",
+            "tau_actual",
+            "load_target",
+            "zmp_violation",
+            "zmp_actual_violation",
+            "foot_position",
+            "qp_iterations",
+            "angular_momentum",
             "eq_error",
             "ineq_error",
         )
@@ -720,17 +1034,26 @@ def main():
 
     def step_once(viewer=None):
         try:
-            z, iterations, eq_error, ineq_error, rcond, support, scheduled, physical_support = (
-                solve_reduced_qp(
-                    model,
-                    data,
-                    reference,
-                    data.time * args.speed,
-                    args,
-                    tau_limits,
-                    contact_anchors,
-                    qp_solvers,
-                )
+            (
+                z,
+                iterations,
+                eq_error,
+                ineq_error,
+                rcond,
+                support,
+                scheduled,
+                physical_support,
+                diagnostics,
+            ) = solve_reduced_qp(
+                model,
+                data,
+                reference,
+                data.time * args.speed,
+                args,
+                tau_limits,
+                contact_anchors,
+                qp_solvers,
+                controller_state,
             )
         except Exception as exc:
             mujoco.mj_forward(model, data)
@@ -749,34 +1072,54 @@ def main():
         trace["tau"].append(z[NV + NLAMBDA :].copy())
         wrench = z[NV : NV + NLAMBDA].reshape(2, 6).copy()
         trace["wrench"].append(wrench)
-        zmp_target = support_polygon(data, support, reference["site_ids"], args.cop_x, args.cop_y)[
-            1
-        ]
         ground_z = data.geom_xpos[reference["ground_geom_id"], 2]
-        moment_at_ground = np.zeros(3)
-        force_total = np.zeros(3)
-        for foot, side in enumerate(SIDES):
-            if not support[foot]:
-                continue
-            site_id = reference["site_ids"][f"{side}_foot"]
-            force = wrench[foot, :3]
-            force_total += force
-            moment_at_ground += wrench[foot, 3:] + np.cross(
-                data.site_xpos[site_id] - np.array([0.0, 0.0, ground_z]), force
-            )
-        zmp = (
-            np.array([-moment_at_ground[1], moment_at_ground[0]]) / force_total[2]
-            if force_total[2] > 1e-3
-            else np.full(2, np.nan)
+        foot_positions = np.array(
+            [data.site_xpos[reference["site_ids"][f"{side}_foot"]].copy() for side in SIDES]
         )
+        zmp, force_total = resultant_zmp(wrench, foot_positions, ground_z)
         trace["zmp"].append(zmp)
-        trace["zmp_target"].append(zmp_target if np.any(support) else np.full(2, np.nan))
+        trace["zmp_target"].append(diagnostics["zmp_target"])
+        for key in (
+            "com",
+            "com_velocity",
+            "com_target",
+            "dcm",
+            "dcm_target",
+            "com_acc_command",
+            "com_acc_qp",
+            "load_target",
+            "angular_momentum",
+        ):
+            trace[key].append(diagnostics[key])
+        trace["normal_force"].append(force_total[2])
+        trace["foot_position"].append(foot_positions)
+        trace["qp_iterations"].append(iterations)
+        faces = diagnostics["zmp_faces"]
+
+        def polygon_error(point):
+            if not len(faces) or not np.isfinite(point).all():
+                return np.nan
+            return np.max(faces[:, :2] @ point + faces[:, 2] + args.zmp_margin)
+
+        trace["zmp_violation"].append(polygon_error(zmp))
         trace["support"].append(support.copy())
         trace["physical_support"].append(physical_support.copy())
         trace["planned_support"].append(scheduled.copy())
         trace["eq_error"].append(eq_error)
         trace["ineq_error"].append(ineq_error)
         mujoco.mj_step(model, data)
+        measured_wrench, contact_points = measured_contact_wrenches(model, data, reference)
+        actual_zmp, actual_force = resultant_zmp(measured_wrench, foot_positions, ground_z)
+        trace["wrench_actual"].append(measured_wrench)
+        trace["zmp_actual"].append(actual_zmp)
+        trace["zmp_actual_violation"].append(polygon_error(actual_zmp))
+        trace["normal_force_actual"].append(actual_force[2])
+        trace["contact_points"].append(contact_points)
+        trace["qacc_actual"].append(data.qacc.copy())
+        trace["com_acc_actual"].append(
+            diagnostics["com_jac"] @ data.qacc + diagnostics["com_jdot_v"]
+        )
+        trace["tau_actual"].append(data.qfrc_actuator[model.jnt_dofadr[actuator_joint_ids]].copy())
         state["steps"] += 1
         state["max_eq"] = max(state["max_eq"], eq_error)
         state["max_ineq"] = max(state["max_ineq"], ineq_error)
@@ -829,6 +1172,12 @@ def main():
             **{key: np.asarray(value) for key, value in trace.items()},
             joint_names=actuator_names,
             wrench_order=np.array(["Fx", "Fy", "Fz", "Mx", "My", "Mz"]),
+            configuration=np.array(json.dumps(vars(args), default=str)),
+            succeeded=np.array(state["failed"] is None and data.time >= duration),
+            failure=np.array(state["failed"] or ""),
+            simulation_dt=np.array(model.opt.timestep),
+            simulated_duration=np.array(data.time),
+            requested_duration=np.array(duration),
         )
         print(f"trace={args.output}")
     if state["failed"]:
