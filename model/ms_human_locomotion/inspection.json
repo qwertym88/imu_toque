@@ -1,0 +1,448 @@
+{
+  "mujoco_version": "3.9.0",
+  "nq": 22,
+  "nv": 21,
+  "nu": 15,
+  "moving_bodies": 10,
+  "neq": 0,
+  "ntendon": 0,
+  "activation_states": 0,
+  "total_mass_kg": 60.216523060956504,
+  "mass_matrix_shape": [
+    21,
+    21
+  ],
+  "mass_matrix_min_eigenvalue": 0.0017166340779603889,
+  "mass_matrix_symmetry_error": 0.0,
+  "passive_force_max_abs": 0.0,
+  "whole_body_com_world_m": [
+    -0.055366470550960604,
+    2.212161078884653e-06,
+    0.9789148186796774
+  ],
+  "soles": {
+    "left": {
+      "bottom_z_m": 1.5525775109992423e-15,
+      "site_world_m": [
+        -0.03506097772478238,
+        0.08391486893624397,
+        8.012893820685818e-10
+      ]
+    },
+    "right": {
+      "bottom_z_m": 1.5525775109992423e-15,
+      "site_world_m": [
+        -0.03506097772478238,
+        -0.08391486893624396,
+        8.012893820685818e-10
+      ]
+    }
+  },
+  "bodies": [
+    {
+      "name": "pelvis",
+      "mass_kg": 8.357,
+      "com_world_m": [
+        -0.07164328108172781,
+        -2.95943785610438e-20,
+        0.9495567989400506
+      ],
+      "principal_inertia_kg_m2": [
+        0.06128502738193174,
+        0.04125952232287899,
+        0.03347549494094723
+      ]
+    },
+    {
+      "name": "right_thigh",
+      "mass_kg": 6.331,
+      "com_world_m": [
+        -0.0558205245486642,
+        -0.07726724393271193,
+        0.6992144362546324
+      ],
+      "principal_inertia_kg_m2": [
+        0.09830279097569217,
+        0.09326026866824419,
+        0.02379215180297499
+      ]
+    },
+    {
+      "name": "right_shank",
+      "mass_kg": 2.836,
+      "com_world_m": [
+        -0.056290977617786654,
+        -0.07599486465014053,
+        0.280250000688267
+      ],
+      "principal_inertia_kg_m2": [
+        0.0390882,
+        0.0385528,
+        0.00390118
+      ]
+    },
+    {
+      "name": "right_talus",
+      "mass_kg": 0.161,
+      "com_world_m": [
+        -0.06035368776807034,
+        -0.07431087808792876,
+        0.06729351266394944
+      ],
+      "principal_inertia_kg_m2": [
+        3.198010000000005e-05,
+        2.277499999999999e-05,
+        1.8808399999999964e-05
+      ]
+    },
+    {
+      "name": "right_foot",
+      "mass_kg": 0.698,
+      "com_world_m": [
+        -0.02817036726745757,
+        -0.0811095996605402,
+        0.037795303932623835
+      ],
+      "principal_inertia_kg_m2": [
+        0.0030159098514875035,
+        0.0028171779928883845,
+        0.0003524528671047931
+      ]
+    },
+    {
+      "name": "left_thigh",
+      "mass_kg": 6.331,
+      "com_world_m": [
+        -0.0558205245486642,
+        0.07726724393271193,
+        0.6992144362546324
+      ],
+      "principal_inertia_kg_m2": [
+        0.09830279097569217,
+        0.09326026866824419,
+        0.02379215180297499
+      ]
+    },
+    {
+      "name": "left_shank",
+      "mass_kg": 2.836,
+      "com_world_m": [
+        -0.056290977617786654,
+        0.07599486465014055,
+        0.280250000688267
+      ],
+      "principal_inertia_kg_m2": [
+        0.0390882,
+        0.0385528,
+        0.00390118
+      ]
+    },
+    {
+      "name": "left_talus",
+      "mass_kg": 0.161,
+      "com_world_m": [
+        -0.06035368776807034,
+        0.07431087808792877,
+        0.06729351266394944
+      ],
+      "principal_inertia_kg_m2": [
+        3.198010000000005e-05,
+        2.277499999999999e-05,
+        1.8808399999999964e-05
+      ]
+    },
+    {
+      "name": "left_foot",
+      "mass_kg": 0.698,
+      "com_world_m": [
+        -0.02817036726745757,
+        0.08110959966054021,
+        0.037795303932623835
+      ],
+      "principal_inertia_kg_m2": [
+        0.0030159098514875035,
+        0.0028171779928883845,
+        0.0003524528671047931
+      ]
+    },
+    {
+      "name": "torso",
+      "mass_kg": 31.8075230609565,
+      "com_world_m": [
+        -0.05188746764477223,
+        4.1879604509221934e-06,
+        1.2730931156212255
+      ],
+      "principal_inertia_kg_m2": [
+        1.583165140664273,
+        1.352956619859022,
+        0.41104444454775413
+      ]
+    }
+  ],
+  "joint_order": [
+    {
+      "name": "right_hip_pitch",
+      "qpos_address": 7,
+      "dof_address": 6,
+      "axis_body": [
+        0.0,
+        2.22044604925031e-16,
+        1.0
+      ],
+      "range_rad": [
+        -0.52,
+        2.0
+      ]
+    },
+    {
+      "name": "right_hip_roll",
+      "qpos_address": 8,
+      "dof_address": 7,
+      "axis_body": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.85,
+        0.5
+      ]
+    },
+    {
+      "name": "right_hip_yaw",
+      "qpos_address": 9,
+      "dof_address": 8,
+      "axis_body": [
+        0.0,
+        1.0,
+        -2.22044604925031e-16
+      ],
+      "range_rad": [
+        -0.65,
+        0.65
+      ]
+    },
+    {
+      "name": "right_knee_pitch",
+      "qpos_address": 10,
+      "dof_address": 9,
+      "axis_body": [
+        8.57990316565356e-09,
+        -0.0707130625878678,
+        -0.997496698129595
+      ],
+      "range_rad": [
+        0.0,
+        2.4
+      ]
+    },
+    {
+      "name": "right_ankle_pitch",
+      "qpos_address": 11,
+      "dof_address": 10,
+      "axis_body": [
+        -0.105014035675584,
+        -0.174022059119132,
+        0.979126332630813
+      ],
+      "range_rad": [
+        -0.68,
+        0.52
+      ]
+    },
+    {
+      "name": "right_ankle_roll",
+      "qpos_address": 12,
+      "dof_address": 11,
+      "axis_body": [
+        0.787180020856335,
+        0.604747016022772,
+        -0.120949003204544
+      ],
+      "range_rad": [
+        -0.34,
+        0.34
+      ]
+    },
+    {
+      "name": "left_hip_pitch",
+      "qpos_address": 13,
+      "dof_address": 12,
+      "axis_body": [
+        0.0,
+        2.22044604925031e-16,
+        1.0
+      ],
+      "range_rad": [
+        -0.52,
+        2.0
+      ]
+    },
+    {
+      "name": "left_hip_roll",
+      "qpos_address": 14,
+      "dof_address": 13,
+      "axis_body": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.85,
+        0.5
+      ]
+    },
+    {
+      "name": "left_hip_yaw",
+      "qpos_address": 15,
+      "dof_address": 14,
+      "axis_body": [
+        0.0,
+        -1.0,
+        2.22044604925031e-16
+      ],
+      "range_rad": [
+        -0.65,
+        0.65
+      ]
+    },
+    {
+      "name": "left_knee_pitch",
+      "qpos_address": 16,
+      "dof_address": 15,
+      "axis_body": [
+        -8.57990316565356e-09,
+        0.0707130625878674,
+        -0.997496698129595
+      ],
+      "range_rad": [
+        0.0,
+        2.4
+      ]
+    },
+    {
+      "name": "left_ankle_pitch",
+      "qpos_address": 17,
+      "dof_address": 16,
+      "axis_body": [
+        0.105014035675584,
+        0.174022059119132,
+        0.979126332630812
+      ],
+      "range_rad": [
+        -0.68,
+        0.52
+      ]
+    },
+    {
+      "name": "left_ankle_roll",
+      "qpos_address": 18,
+      "dof_address": 17,
+      "axis_body": [
+        -0.787180020856335,
+        -0.604747016022772,
+        -0.120949003204544
+      ],
+      "range_rad": [
+        -0.34,
+        0.34
+      ]
+    },
+    {
+      "name": "torso_pitch",
+      "qpos_address": 19,
+      "dof_address": 18,
+      "axis_body": [
+        0.0,
+        0.0,
+        0.999999999999999
+      ],
+      "range_rad": null
+    },
+    {
+      "name": "torso_roll",
+      "qpos_address": 20,
+      "dof_address": 19,
+      "axis_body": [
+        0.933580104168531,
+        0.358368789239065,
+        0.0
+      ],
+      "range_rad": null
+    },
+    {
+      "name": "torso_yaw",
+      "qpos_address": 21,
+      "dof_address": 20,
+      "axis_body": [
+        -0.358368789239065,
+        0.933580104168531,
+        0.0
+      ],
+      "range_rad": null
+    }
+  ],
+  "actuator_order": [
+    {
+      "name": "right_hip_pitch_torque",
+      "joint": "right_hip_pitch"
+    },
+    {
+      "name": "right_hip_roll_torque",
+      "joint": "right_hip_roll"
+    },
+    {
+      "name": "right_hip_yaw_torque",
+      "joint": "right_hip_yaw"
+    },
+    {
+      "name": "right_knee_pitch_torque",
+      "joint": "right_knee_pitch"
+    },
+    {
+      "name": "right_ankle_pitch_torque",
+      "joint": "right_ankle_pitch"
+    },
+    {
+      "name": "right_ankle_roll_torque",
+      "joint": "right_ankle_roll"
+    },
+    {
+      "name": "left_hip_pitch_torque",
+      "joint": "left_hip_pitch"
+    },
+    {
+      "name": "left_hip_roll_torque",
+      "joint": "left_hip_roll"
+    },
+    {
+      "name": "left_hip_yaw_torque",
+      "joint": "left_hip_yaw"
+    },
+    {
+      "name": "left_knee_pitch_torque",
+      "joint": "left_knee_pitch"
+    },
+    {
+      "name": "left_ankle_pitch_torque",
+      "joint": "left_ankle_pitch"
+    },
+    {
+      "name": "left_ankle_roll_torque",
+      "joint": "left_ankle_roll"
+    },
+    {
+      "name": "torso_pitch_torque",
+      "joint": "torso_pitch"
+    },
+    {
+      "name": "torso_roll_torque",
+      "joint": "torso_roll"
+    },
+    {
+      "name": "torso_yaw_torque",
+      "joint": "torso_yaw"
+    }
+  ]
+}

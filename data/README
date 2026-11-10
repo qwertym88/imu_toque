@@ -100,3 +100,17 @@ NPZ 还包含机器人重定向结果的 link 位姿：
 foot_position_errors 保存每帧左右脚相对目标的世界坐标 xyz 残差（米）。foot_contact_targets (帧数, 2, 3) 保存两脚位置目标，包括摆动期；foot_orientation_targets (帧数, 2, 4) 为世界姿态目标的 wxyz 四元数；foot_orientation_errors (帧数, 2, 3) 为 log(R_target^T R_actual) 的旋转向量（弧度，在目标坐标系中表达，其模长为总体旋转误差，并非 RPY 三个角度误差）。errors[..., 2] 为上述总体误差。support_base_adjustment 保存联合优化得到的相对映射骨盆轨迹的 xyz 修正。solver_success、solver_nfev 保存每帧优化器的收敛标志和迭代函数求值次数。
 
 这是运动学拟合，不保证足部接触、平衡、速度或力矩可行性。将结果用于实机前，需要另行做接触、动力学、速度及碰撞检查和轨迹处理。模型 XML 和 URDF 的运动学参数应保持一致。
+
+# 简化人体模型（MS-Human Locomotion 派生）
+
+人体扩展的第一步已提供独立模型 `model/ms_human_locomotion/human.xml`，具有 12 个下肢、
+3 个躯干和 6 个基座速度自由度。来源、简化方式、关节轴、惯性检查、预览和重建命令见
+`model/ms_human_locomotion/README.md`。
+
+```bash
+conda activate humanoid_sim
+python tools/inspect_human_model.py --viewer
+```
+
+这是模型接入阶段。现有 SZAR 运动重定向、NPZ 与 WBC 不能直接用于新模型；人体运动拟合和
+实验测力逆动力学将在后续步骤接入。新模型保留上游约 60.22 kg 的质量，尚未按本实验受试者个体化。

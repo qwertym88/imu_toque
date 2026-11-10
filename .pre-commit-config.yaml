@@ -4,6 +4,7 @@
 # third_party/, build/, install/, log/ are excluded everywhere.
 exclude: |
   (?x)^(
+      model/ms_human_locomotion/source/.* |
       third_party/.* |
       build/.* |
       install/.* |

@@ -1,0 +1,696 @@
+{
+  "upstream_commit": "2d686957aefd5739cf4d2859a6acfd94c8f84400",
+  "generator_mujoco_version": "3.9.0",
+  "world_frame": "x forward, y left, z up; metres, radians, kg, N, Nm",
+  "source_mass_kg": 60.21652306095647,
+  "reference_source_qpos": [
+    0.0,
+    -0.0001332812322597781,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -1.46191e-05,
+    7.69254e-11,
+    9.53733e-08,
+    0.0,
+    -1.47325e-08,
+    1.08939e-08,
+    0.0,
+    0.0,
+    0.0,
+    -0.0108281,
+    0.0524192,
+    0.010506,
+    0.0,
+    0.0,
+    0.0,
+    1.46191e-05,
+    -7.69254e-11,
+    9.53733e-08,
+    0.0,
+    -1.47325e-08,
+    -1.08939e-08,
+    0.0,
+    0.0,
+    0.0,
+    -0.0108281,
+    0.0524192,
+    0.010506
+  ],
+  "neutral_pose_note": "Retained angles zero; dependent knee coordinates at polynomial constants; soles translated to z=0",
+  "groups": {
+    "pelvis": {
+      "source_bodies": [
+        "pelvis",
+        "sacrum",
+        "Abdomen"
+      ],
+      "mass_kg": 8.357,
+      "com_local_m": [
+        -0.07164328108172788,
+        -0.0003099198276893627,
+        0.0
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.03347900730764626,
+          -0.0003125139019983246,
+          0.0
+        ],
+        [
+          -0.0003125139019983246,
+          0.061281515015232685,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.04125952232287898
+        ]
+      ]
+    },
+    "right_thigh": {
+      "source_bodies": [
+        "femur_r",
+        "patella_r"
+      ],
+      "mass_kg": 6.331,
+      "com_local_m": [
+        0.0004554754513357142,
+        -0.1721622825131075,
+        7.243932712051772e-06
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.09325455493320946,
+          0.0006300353436347444,
+          -2.0867987582388963e-06
+        ],
+        [
+          0.0006300353436347444,
+          0.023797867731464462,
+          1.021276571059862e-05
+        ],
+        [
+          -2.0867987582388963e-06,
+          1.021276571059862e-05,
+          0.09830278878223736
+        ]
+      ]
+    },
+    "right_shank": {
+      "source_bodies": [
+        "tibia_r"
+      ],
+      "mass_kg": 2.836,
+      "com_local_m": [
+        3.432481284354385e-18,
+        -0.1867,
+        -4.133450472248919e-18
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.038552799999999984,
+          -8.290484283177149e-26,
+          -2.774968650127892e-18
+        ],
+        [
+          -8.290484283177149e-26,
+          0.0039011799999999985,
+          2.4043041379946273e-19
+        ],
+        [
+          -2.774968650127892e-18,
+          2.4043041379946273e-19,
+          0.03908819999999998
+        ]
+      ]
+    },
+    "right_talus": {
+      "source_bodies": [
+        "talus_r"
+      ],
+      "mass_kg": 0.161,
+      "com_local_m": [
+        0.005937289999999998,
+        0.0003435120000000002,
+        -0.001683990000000005
+      ],
+      "inertia_local_kg_m2": [
+        [
+          1.8987560013781333e-05,
+          -1.4939508852314224e-06,
+          1.9717680198212243e-07
+        ],
+        [
+          -1.4939508852314224e-06,
+          3.1801536514780454e-05,
+          -2.271367812944211e-07
+        ],
+        [
+          1.9717680198212243e-07,
+          -2.271367812944211e-07,
+          2.2774403471438208e-05
+        ]
+      ]
+    },
+    "right_foot": {
+      "source_bodies": [
+        "calcn_r",
+        "toes_r"
+      ],
+      "mass_kg": 0.698,
+      "com_local_m": [
+        0.0868906104584527,
+        0.012795303180515756,
+        -0.0028052686103151895
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.00038178471533268434,
+          0.0002612999576036383,
+          -8.973546834786049e-05
+        ],
+        [
+          0.0002612999576036383,
+          0.002989046743322076,
+          2.2568502697587555e-05
+        ],
+        [
+          -8.973546834786049e-05,
+          2.2568502697587555e-05,
+          0.002814709252825922
+        ]
+      ]
+    },
+    "left_thigh": {
+      "source_bodies": [
+        "femur_l",
+        "patella_l"
+      ],
+      "mass_kg": 6.331,
+      "com_local_m": [
+        0.0004554754513357142,
+        -0.1721622825131075,
+        -7.243932712051772e-06
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.09325455493320946,
+          0.0006300353436347444,
+          2.0867987582388963e-06
+        ],
+        [
+          0.0006300353436347444,
+          0.023797867731464462,
+          -1.021276571059862e-05
+        ],
+        [
+          2.0867987582388963e-06,
+          -1.021276571059862e-05,
+          0.09830278878223736
+        ]
+      ]
+    },
+    "left_shank": {
+      "source_bodies": [
+        "tibia_l"
+      ],
+      "mass_kg": 2.836,
+      "com_local_m": [
+        3.432481284354385e-18,
+        -0.1867,
+        4.133450472248919e-18
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.038552799999999984,
+          -4.209305835153794e-26,
+          2.125256897452794e-18
+        ],
+        [
+          -4.209305835153794e-26,
+          0.0039011799999999985,
+          -2.4043041379946273e-19
+        ],
+        [
+          2.125256897452794e-18,
+          -2.4043041379946273e-19,
+          0.03908819999999998
+        ]
+      ]
+    },
+    "left_talus": {
+      "source_bodies": [
+        "talus_l"
+      ],
+      "mass_kg": 0.161,
+      "com_local_m": [
+        0.005937289999999998,
+        0.0003435120000000002,
+        0.001683990000000005
+      ],
+      "inertia_local_kg_m2": [
+        [
+          1.8987560013781333e-05,
+          -1.4939508852314224e-06,
+          -1.9717680198212243e-07
+        ],
+        [
+          -1.4939508852314224e-06,
+          3.1801536514780454e-05,
+          2.271367812944211e-07
+        ],
+        [
+          -1.9717680198212243e-07,
+          2.271367812944211e-07,
+          2.2774403471438208e-05
+        ]
+      ]
+    },
+    "left_foot": {
+      "source_bodies": [
+        "calcn_l",
+        "toes_l"
+      ],
+      "mass_kg": 0.698,
+      "com_local_m": [
+        0.0868906104584527,
+        0.012795303180515756,
+        0.0028052686103151895
+      ],
+      "inertia_local_kg_m2": [
+        [
+          0.00038178471533268434,
+          0.0002612999576036383,
+          8.973546834786049e-05
+        ],
+        [
+          0.0002612999576036383,
+          0.002989046743322076,
+          -2.2568502697587555e-05
+        ],
+        [
+          8.973546834786049e-05,
+          -2.2568502697587555e-05,
+          0.002814709252825922
+        ]
+      ]
+    },
+    "torso": {
+      "source_bodies": [
+        "lumbar5",
+        "lumbar4",
+        "lumbar3",
+        "lumbar2",
+        "lumbar1",
+        "thoracic12",
+        "thoracic11",
+        "thoracic10",
+        "thoracic9",
+        "thoracic8",
+        "thoracic7",
+        "thoracic6",
+        "thoracic5",
+        "thoracic4",
+        "thoracic3",
+        "thoracic2",
+        "thoracic1",
+        "head_neck",
+        "sternum",
+        "clavicle_r",
+        "clavphant_r",
+        "scapula_r",
+        "scapphant_r",
+        "humphant_r",
+        "humphant1_r",
+        "humerus_r",
+        "ulna_r",
+        "radius_r",
+        "proximal_row_r",
+        "hand_r",
+        "clavicle_l",
+        "clavphant_l",
+        "scapula_l",
+        "scapphant_l",
+        "humphant_l",
+        "humphant1_l",
+        "humerus_l",
+        "ulna_l",
+        "radius_l",
+        "proximal_row_l",
+        "hand_l",
+        "rib1_R",
+        "rib1_L",
+        "rib2_R",
+        "rib2_L",
+        "rib3_R",
+        "rib3_L",
+        "rib4_R",
+        "rib4_L",
+        "rib5_R",
+        "rib5_L",
+        "rib6_R",
+        "rib6_L",
+        "rib7_R",
+        "rib7_L",
+        "rib8_R",
+        "rib8_L",
+        "rib9_R",
+        "rib9_L",
+        "rib10_R",
+        "rib10_L",
+        "rib11_R",
+        "rib11_L",
+        "rib12_R",
+        "rib12_L"
+      ],
+      "mass_kg": 31.80752306095646,
+      "com_local_m": [
+        -0.06851140304215642,
+        0.2652949084822063,
+        -4.187960450922226e-06
+      ],
+      "inertia_local_kg_m2": [
+        [
+          1.3640760415556914,
+          0.4569451104911633,
+          -3.642858927456805e-07
+        ],
+        [
+          0.4569451104911633,
+          0.6301335436620101,
+          3.5594050416367436e-06
+        ],
+        [
+          -3.642858927456805e-07,
+          3.5594050416367436e-06,
+          1.3529566198533511
+        ]
+      ]
+    }
+  },
+  "joints": [
+    {
+      "name": "right_hip_pitch",
+      "source_joint": "hip_flexion_r",
+      "axis_body": [
+        0.0,
+        2.2204460492503126e-16,
+        0.9999999999999996
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.52,
+        2.0
+      ]
+    },
+    {
+      "name": "right_hip_roll",
+      "source_joint": "hip_adduction_r",
+      "axis_body": [
+        0.9999999999999998,
+        0.0,
+        0.0
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.85,
+        0.5
+      ]
+    },
+    {
+      "name": "right_hip_yaw",
+      "source_joint": "hip_rotation_r",
+      "axis_body": [
+        0.0,
+        0.9999999999999996,
+        -2.2204460492503126e-16
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.65,
+        0.65
+      ]
+    },
+    {
+      "name": "right_knee_pitch",
+      "source_joint": "knee_angle_r",
+      "axis_body": [
+        8.579903165653555e-09,
+        -0.07071306258786776,
+        -0.9974966981295945
+      ],
+      "anchor_body_m": [
+        -0.008089999999999998,
+        -0.003534999999999986,
+        -0.0014849999999999926
+      ],
+      "range_rad": [
+        0.0,
+        2.4
+      ]
+    },
+    {
+      "name": "right_ankle_pitch",
+      "source_joint": "ankle_angle_r",
+      "axis_body": [
+        -0.10501403567558427,
+        -0.17402205911913204,
+        0.9791263326308125
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.68,
+        0.52
+      ]
+    },
+    {
+      "name": "right_ankle_roll",
+      "source_joint": "subtalar_angle_r",
+      "axis_body": [
+        0.7871800208563348,
+        0.6047470160227724,
+        -0.12094900320454387
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.34,
+        0.34
+      ]
+    },
+    {
+      "name": "left_hip_pitch",
+      "source_joint": "hip_flexion_l",
+      "axis_body": [
+        0.0,
+        2.2204460492503126e-16,
+        0.9999999999999996
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.52,
+        2.0
+      ]
+    },
+    {
+      "name": "left_hip_roll",
+      "source_joint": "hip_adduction_l",
+      "axis_body": [
+        -0.9999999999999998,
+        0.0,
+        0.0
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.85,
+        0.5
+      ]
+    },
+    {
+      "name": "left_hip_yaw",
+      "source_joint": "hip_rotation_l",
+      "axis_body": [
+        0.0,
+        -0.9999999999999996,
+        2.2204460492503126e-16
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.65,
+        0.65
+      ]
+    },
+    {
+      "name": "left_knee_pitch",
+      "source_joint": "knee_angle_l",
+      "axis_body": [
+        -8.579903165653555e-09,
+        0.07071306258786743,
+        -0.9974966981295946
+      ],
+      "anchor_body_m": [
+        -0.008089999999999998,
+        -0.003534999999999986,
+        0.0014850000000000065
+      ],
+      "range_rad": [
+        0.0,
+        2.4
+      ]
+    },
+    {
+      "name": "left_ankle_pitch",
+      "source_joint": "ankle_angle_l",
+      "axis_body": [
+        0.10501403567558427,
+        0.17402205911913204,
+        0.9791263326308124
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.68,
+        0.52
+      ]
+    },
+    {
+      "name": "left_ankle_roll",
+      "source_joint": "subtalar_angle_l",
+      "axis_body": [
+        -0.7871800208563348,
+        -0.6047470160227725,
+        -0.12094900320454392
+      ],
+      "anchor_body_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "range_rad": [
+        -0.34,
+        0.34
+      ]
+    },
+    {
+      "name": "torso_pitch",
+      "source_joint": null,
+      "axis_body": [
+        0.0,
+        0.0,
+        0.9999999999999993
+      ],
+      "range_rad": null,
+      "note": "Added lumped torso coordinate; no strength limits"
+    },
+    {
+      "name": "torso_roll",
+      "source_joint": null,
+      "axis_body": [
+        0.9335801041685313,
+        0.3583687892390645,
+        0.0
+      ],
+      "range_rad": null,
+      "note": "Added lumped torso coordinate; no strength limits"
+    },
+    {
+      "name": "torso_yaw",
+      "source_joint": null,
+      "axis_body": [
+        -0.3583687892390645,
+        0.9335801041685312,
+        0.0
+      ],
+      "range_rad": null,
+      "note": "Added lumped torso coordinate; no strength limits"
+    }
+  ],
+  "joint_qpos_order": [
+    "right_hip_pitch",
+    "right_hip_roll",
+    "right_hip_yaw",
+    "right_knee_pitch",
+    "right_ankle_pitch",
+    "right_ankle_roll",
+    "left_hip_pitch",
+    "left_hip_roll",
+    "left_hip_yaw",
+    "left_knee_pitch",
+    "left_ankle_pitch",
+    "left_ankle_roll",
+    "torso_pitch",
+    "torso_roll",
+    "torso_yaw"
+  ],
+  "actuator_order": [
+    "right_hip_pitch",
+    "right_hip_roll",
+    "right_hip_yaw",
+    "right_knee_pitch",
+    "right_ankle_pitch",
+    "right_ankle_roll",
+    "left_hip_pitch",
+    "left_hip_roll",
+    "left_hip_yaw",
+    "left_knee_pitch",
+    "left_ankle_pitch",
+    "left_ankle_roll",
+    "torso_pitch",
+    "torso_roll",
+    "torso_yaw"
+  ],
+  "sole_half_length_width_m": [
+    0.13,
+    0.045
+  ],
+  "simplifications": [
+    "Pelvis+sacrum+Abdomen merged; upper spine+head+arms merged into torso",
+    "Three torso coordinates added at lumbar5; upper internal posture fixed",
+    "Patella locked to femur and toes locked to calcaneus at neutral",
+    "Knee secondary translations/rotations frozen at neutral polynomial values",
+    "Original ankle and subtalar oblique axes and offset preserved",
+    "No muscles, tendons, equalities, damping, springs, frictionloss or armature",
+    "Primitive visuals and approximate sole contacts; no human strength limits",
+    "Unscaled source subject; not personalized to the recorded 85 kg subject"
+  ]
+}
