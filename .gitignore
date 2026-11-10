@@ -1,2 +1,20 @@
-.vscode
-__pycache__
+# Local environments and editor state
+.venv/
+venv/
+.vscode/
+.idea/
+
+# Python caches and development tools
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated analysis outputs; curated model artifacts remain versioned
+/outputs/
+/build/
+/dist/
+*.egg-info/

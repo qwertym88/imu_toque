@@ -1,11 +1,11 @@
-"""Visualize vertical force and center of pressure from fp_raw.csv.
+#!/usr/bin/env python3
+"""Preview force-plate |Fz| and COP without transforming experimental forces.
 
-The animated view is the default; it keeps only a short COP trail visible.
+The plate dimensions/layout are schematic, not calibrated world coordinates.
+Absolute Fz is used only for plotting. Do not use this view as inverse-dynamics input.
 
-Run from this directory or any other directory:
-    python visualize_force_plates.py                              # play animation
-    python visualize_force_plates.py --no_animate                 # static PNG
-    python visualize_force_plates.py --output out.gif             # save GIF
+    python tools/preview_force_plates.py
+    python tools/preview_force_plates.py --no-animate --no-show
 """
 
 from __future__ import annotations
@@ -17,6 +17,8 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
+
+ROOT = Path(__file__).resolve().parents[1]
 
 PLATE_LENGTH = 0.6  # m, x direction
 PLATE_WIDTH = 0.4  # m, y direction
@@ -36,7 +38,7 @@ def load_force_plate_data(csv_path: Path) -> np.ndarray:
 def _compute_cop_global(
     data: np.ndarray, plate_index: int, gap: float
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Convert local COP coordinates to global x/y."""
+    """Place local COP in the schematic plate layout for display only."""
     fz = np.abs(data[f"FP{plate_index}_Fz"])
     # COP is measured from the center of each plate, while plate origins are
     # its left edges in the global drawing.
@@ -100,7 +102,7 @@ def make_figure(data: np.ndarray, contact_threshold: float, gap: float) -> plt.F
 
     plate_ax.set(
         title="Center of pressure while loaded (color = time)",
-        xlabel="Global x (m)",
+        xlabel="Schematic plate-layout x (m)",
         ylabel="Local y (m)",
         aspect="equal",
     )
@@ -134,7 +136,8 @@ def animate_data(
         How many seconds of COP history to keep visible.
     """
     time = data["SysTime"] - data["SysTime"][0]
-    # The file is sampled at 512 Hz. Drawing every sample is unnecessary and
+    # Use file timestamps; the nominal sample-rate label is not a clock calibration.
+    # Drawing every sample is unnecessary and
     # can make the wall-clock playback much slower than the recorded motion.
     frame_times = np.arange(0.0, time[-1] + 1e-9, 1.0 / fps)
     frame_indices = np.searchsorted(time, frame_times, side="left")
@@ -169,7 +172,7 @@ def animate_data(
 
     plate_ax.set(
         title="Center of pressure over time",
-        xlabel="Global x (m)",
+        xlabel="Schematic plate-layout x (m)",
         ylabel="Local y (m)",
         aspect="equal",
         xlim=(-0.1, 3 * PLATE_LENGTH + 2 * gap + 0.1),
@@ -214,7 +217,7 @@ def animate_data(
             scat.set_data(gx_curr[contact], gy_curr[contact])
 
         # Time indicator line
-        current_time = time[frame]
+        current_time = time[sample_index]
         time_indicator.set_data([current_time, current_time], force_ax.get_ylim())
 
         # Timestamp
@@ -238,7 +241,7 @@ def main() -> None:
         "csv_path",
         nargs="?",
         type=Path,
-        default=Path(__file__).with_name("fp_raw.csv"),
+        default=ROOT / "data/fp_raw.csv",
         help="Path to fp_raw.csv",
     )
     parser.add_argument(
@@ -256,14 +259,16 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(__file__).with_name("force_plate_visualization.png"),
+        default=ROOT / "outputs/force_plate_preview.png",
         help="Output path (PNG for static, GIF/MP4 for animation)",
     )
     parser.add_argument("--no-show", action="store_true", help="Do not open a plot window")
     parser.add_argument(
+        "--no-animate",
         "--no_animate",
+        dest="no_animate",
         action="store_true",
-        help="Do not create an animated visualization instead of a static overview",
+        help="Save a static overview instead of animating",
     )
     parser.add_argument(
         "--fps",
@@ -275,12 +280,14 @@ def main() -> None:
         "--trail-seconds",
         type=float,
         default=3.0,
-        help="Seconds of recent COP trail to display (default: 1)",
+        help="Seconds of recent COP trail to display (default: 3)",
     )
     args = parser.parse_args()
 
     data = load_force_plate_data(args.csv_path)
-    n_pts = len(data)
+    if args.fps <= 0 or args.trail_seconds <= 0 or args.threshold < 0:
+        parser.error("--fps and --trail-seconds must be positive; --threshold must be nonnegative")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
 
     if not args.no_animate:
         anim = animate_data(

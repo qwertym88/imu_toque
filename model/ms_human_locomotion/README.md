@@ -128,9 +128,6 @@ python -m unittest discover -s tests -p 'test_human*.py' -v
 
 ## 后续接入
 
-旧的 `retarget_xsens.py` 和 `simulate_wbc.py` 仍依赖 SZAR 的维度、名称和控制逻辑，
-当前不能通过更换 `--model` 直接用于本模型；旧 NPZ 的 `(N, 19)` qpos 也不能复用。
-
-下一步应添加面向人体尺寸、全部目标身体段和新模型坐标的 Xsens 拟合，输出 `(N, 22)` qpos；
+下一步添加面向受试者尺寸、目标身体段和本模型坐标的 Xsens 拟合，输出 `(N, 22)` qpos；
 之后在正确处理四元数导数、滤波和实验外力对齐的基础上计算净力矩。
-该离线评估流程应独立于旧 WBC 的参考轨迹跟踪控制。
+原始记录和预览方法见 `data/README.md`，开发顺序以根目录 `README.md` 为准。

@@ -1,16 +1,5 @@
-# Pre-commit hooks for the biped project.
-# - C++  : clang-format (uses the repo-root .clang-format)
-# - Python: black + isort
-# third_party/, build/, install/, log/ are excluded everywhere.
-exclude: |
-  (?x)^(
-      model/ms_human_locomotion/source/.* |
-      third_party/.* |
-      build/.* |
-      install/.* |
-      log/.* |
-      \.git/.*
-  )$
+# Python human-dynamics workflow. Preserve upstream bytes for SHA-256 provenance.
+exclude: ^model/ms_human_locomotion/source/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -22,12 +11,6 @@ repos:
         args: [--fix=lf]
       - id: check-yaml
       - id: check-merge-conflict
-
-  - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v14.0.0
-    hooks:
-      - id: clang-format
-        args: [--style=file, -i]
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
