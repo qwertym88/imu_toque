@@ -1,0 +1,29 @@
+{
+  "subject": {
+    "id": "y13",
+    "mass_kg": 62.5,
+    "height_m": 1.72,
+    "source": "user_provided",
+    "relationship_to_legacy_data": "different_participant; legacy H5, XLSX and force-plate files are excluded"
+  },
+  "input_xlsx": "data/y13_MVN_3_8_01.xlsx",
+  "input_mvn": "data/y13_MVN_3_8_01.mvn",
+  "base_model": "model/ms_human_locomotion/human.xml",
+  "output_dir": "outputs/y13",
+  "reference_frame": 0,
+  "reference_pose_status": "provisional neutral alignment; standard standing pose not yet confirmed",
+  "output_rate_hz": 60.0,
+  "simulation": {
+    "start_s": 25.0,
+    "duration_s": 10.0,
+    "belt_speed_m_s": 1.0555555555555556,
+    "belt_speed_status": "assumed 3.8 km/h from recording name; not yet confirmed",
+    "assistance": "pelvis",
+    "torque_limit_Nm": 1500.0,
+    "torque_limit_status": "numerical diagnostic bound, not measured human strength",
+    "timestep_s": 0.001,
+    "log_rate_hz": 100.0,
+    "joint_kp": 400.0,
+    "base_kp": 120.0
+  }
+}

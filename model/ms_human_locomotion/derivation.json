@@ -691,6 +691,6 @@
     "Original ankle and subtalar oblique axes and offset preserved",
     "No muscles, tendons, equalities, damping, springs, frictionloss or armature",
     "Primitive visuals and approximate sole contacts; no human strength limits",
-    "Unscaled source subject; not personalized to the recorded 85 kg subject"
+    "Unscaled source subject; participant adaptations are saved separately"
   ]
 }

@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=ROOT / "data/xsense_raw.xlsx")
+    parser.add_argument("--input", type=Path, default=ROOT / "data/y13_MVN_3_8_01.xlsx")
     parser.add_argument("--fps", type=float, default=60.0, help="Playback frame rate")
     parser.add_argument("--frame", type=int, help="Save a single frame instead of animating")
     parser.add_argument("--output", type=Path, default=ROOT / "outputs/xsens_preview.png")
