@@ -7,9 +7,17 @@
 当前数据仅使用 `data/y13_MVN_3_8_01.mvn` / `.xlsx`，受试者体重 **62.5 kg**、身高 **1.72 m**。
 旧 Xsens、H5 和力台数据暂停使用；它们不属于这位新实验者。
 
-已验证第 25–35 秒片段的 10 秒有辅助物理追踪；无辅助控制仍会失稳，尚未实现自主稳定行走。
+逆动力学诊断流程已验证第 25–35 秒片段的 10 秒有辅助物理追踪，其无辅助控制仍会失稳。
+新增 RL 基线已在同一片段完成 **10 秒零骨盆辅助、无中途重置** 的连续追踪，
+关节误差 95 分位约 12.7°，根位置误差 95 分位约 0.90 m，尚需改善追踪精度并验证其他片段。
 控制力矩、接触力和骨盆辅助均单独输出，不能把它们当作经实验验证的人体力矩。
 完整流程、假设和结果说明见 [新 Xsens 开发说明](docs/y13_xsens_walk.md)。
+
+另已提供 **mjlab 人体动作追踪基线**：基于同一人体和 Xsens 参考，使用 PPO 学习关节目标修正，
+训练和评估均不施加骨盆辅助。使用项目内 `.venv-mjlab` 环境，入口为
+`python tools/mjlab_human.py prepare/check/smoke/train/evaluate`（选择一个子命令）。
+安装、训练、连续评估和力矩输出边界见 [RL 基线说明](docs/mjlab_human_tracking.md)。
+本次训练 checkpoint、动画和定量结果见 [RL 验证结果](docs/mjlab_human_results.md)。
 
 ```bash
 conda activate humanoid_sim
@@ -56,6 +64,8 @@ tools/
   plot_xsens_results.py      CSV 和诊断图
   view_human_motion.py       拟合/物理状态重放和动画导出
   run_xsens_pipeline.py      一键执行当前流程
+  mjlab_human.py             RL 参考转换、验收、PPO 训练和连续评估
+  plot_mjlab_tracking.py     RL 轨迹的 CSV、关节角与受力诊断图
   preview_xsens.py           Xsens 导出结果预览
   preview_force_plates.py    原始力台数据预览
 tests/

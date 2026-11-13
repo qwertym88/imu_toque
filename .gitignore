@@ -1,5 +1,6 @@
 # Local environments and editor state
 .venv/
+/.venv-mjlab/
 venv/
 .vscode/
 .idea/
