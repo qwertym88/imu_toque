@@ -220,6 +220,10 @@ def fit_motion(
     align_heading=False,
     root_mode="in_place",
 ):
+    input_path = Path(input_path)
+    model_path = Path(model_path)
+    output_path = Path(output_path)
+    source_xlsx_sha256 = hashlib.sha256(input_path.read_bytes()).hexdigest()
     frames, source_rate, quats, segment_positions, metadata = load_xsens(input_path)
     pelvis_position = segment_positions[:, 0].copy()
     raw_rotations, quat_valid = quaternion_rotations(quats)
@@ -506,6 +510,7 @@ def fit_motion(
             json.dumps(
                 {
                     "source_xlsx": str(input_path.resolve()),
+                    "source_xlsx_sha256": source_xlsx_sha256,
                     "source_mvn": str(input_path.with_suffix(".mvn").resolve()),
                     "source_metadata": {key: str(value) for key, value in metadata.items()},
                     "model": str(model_path.resolve()),
@@ -534,6 +539,7 @@ def fit_motion(
         json.dumps(
             {
                 "source_xlsx": str(input_path.resolve()),
+                "source_xlsx_sha256": source_xlsx_sha256,
                 "source_mvn": str(input_path.with_suffix(".mvn").resolve()),
                 "frames": len(output_frames),
                 "source_frames": len(frames),

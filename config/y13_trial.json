@@ -6,6 +6,11 @@
     "source": "user_provided",
     "relationship_to_legacy_data": "different_participant; legacy H5, XLSX and force-plate files are excluded"
   },
+  "force_plate": {
+    "input": null,
+    "status": "legacy_force_plate_is_paired_with_legacy_xsens_sample_only",
+    "policy": "never pair data/fp_raw.csv with any y13 input"
+  },
   "input_xlsx": "data/y13_MVN_3_8_01.xlsx",
   "input_mvn": "data/y13_MVN_3_8_01.mvn",
   "base_model": "model/ms_human_locomotion/human.xml",

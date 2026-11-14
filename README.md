@@ -5,7 +5,8 @@
 
 当前已完成简化人体模型，以及**新实验者 Xsens 的关节拟合与骨盆辅助力矩追踪原型**。
 当前数据仅使用 `data/y13_MVN_3_8_01.mvn` / `.xlsx`，受试者体重 **62.5 kg**、身高 **1.72 m**。
-旧 Xsens、H5 和力台数据暂停使用；它们不属于这位新实验者。
+`xsense_raw.xlsx` 与 `fp_raw.csv` 是一组旧样本的配对数据；Y13 是另一组样本，任何 Y13 分析都不得读取该旧力台。
+其他旧 H5 也不参与当前流程。
 
 逆动力学诊断流程已验证第 25–35 秒片段的 10 秒有辅助物理追踪，其无辅助控制仍会失稳。
 新增 RL 基线已在同一片段完成 **10 秒零骨盆辅助、无中途重置** 的连续追踪，
@@ -18,6 +19,14 @@
 `python tools/mjlab_human.py prepare/check/smoke/train/evaluate`（选择一个子命令）。
 安装、训练、连续评估和力矩输出边界见 [RL 基线说明](docs/mjlab_human_tracking.md)。
 本次训练 checkpoint、动画和定量结果见 [RL 验证结果](docs/mjlab_human_results.md)。
+
+另有 Y13 七路 IMU 的时序接触估计基线，利用 Xsens 足部运动信号和 HMM 历史状态输出候选支撑区间；
+尚无同步接触标签，不能视为真值，也还未接入完整 WBC。坡道/楼梯记录尚在整理，接触模型的跨地形验证待数据到位后进行。见[接触估计说明](docs/y13_contact_inference.md)。
+已增加离线 shadow QP 和 MuJoCo 叠加回放：在 `humanoid_sim` 中运行
+`python tools/human_wbc_shadow.py --start 25 --duration 10`，然后运行
+`python tools/view_wbc_shadow.py`。回放显示候选支撑、预测接触力与求解状态，不推进动力学。
+`python tools/simulate_shadow_torques.py --start 25.267 --duration 1 --viewer` 会将这些 QP 力矩
+直接用于无骨盆辅助的开环 MuJoCo 前向仿真；QP 缺失帧需插值，当前结果在约 0.264 秒触发踝关节速度保护。
 
 ```bash
 conda activate humanoid_sim
@@ -66,6 +75,9 @@ tools/
   run_xsens_pipeline.py      一键执行当前流程
   mjlab_human.py             RL 参考转换、验收、PPO 训练和连续评估
   plot_mjlab_tracking.py     RL 轨迹的 CSV、关节角与受力诊断图
+  detect_xsens_contacts.py   Y13 足部运动的时序接触候选估计
+  human_wbc_shadow.py       离线接触约束逆动力学 QP 诊断
+  view_wbc_shadow.py        拟合动作、接触候选和 QP 力的交互回放
   preview_xsens.py           Xsens 导出结果预览
   preview_force_plates.py    原始力台数据预览
 tests/

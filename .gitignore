@@ -19,3 +19,8 @@ htmlcov/
 /build/
 /dist/
 *.egg-info/
+
+# Local participant recordings; distribute separately from source code
+/data/y13_MVN_3_8_01.mvn
+/data/y13_MVN_3_8_01.xlsx
+/data/y13_level_walking_3_8_trial01.h5
